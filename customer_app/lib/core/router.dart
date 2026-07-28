@@ -12,6 +12,7 @@ import '../features/orders/order_confirmation_screen.dart';
 import '../features/orders/order_history_screen.dart';
 import '../features/orders/order_detail_screen.dart';
 import '../features/shell/app_shell.dart';
+import '../features/trade/trade_application_screen.dart';
 
 final router = GoRouter(
   initialLocation: '/catalog',
@@ -79,7 +80,11 @@ final router = GoRouter(
             name: 'account',
             builder: (context, state) => const AccountScreen(),
             routes: [
-              GoRoute(path: 'trade', name: 'tradeApplication', builder: (context, state) => const AccountScreen()),
+              GoRoute(
+                path: 'trade',
+                name: 'tradeApplication',
+                builder: (context, state) => const TradeApplicationScreen(),
+              ),
               GoRoute(path: 'orders', name: 'orderHistory', builder: (context, state) => const OrderHistoryScreen()),
               GoRoute(
                 path: 'orders/:id',
