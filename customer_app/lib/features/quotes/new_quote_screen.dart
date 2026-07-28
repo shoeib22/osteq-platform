@@ -101,7 +101,22 @@ class _NewQuoteScreenState extends ConsumerState<NewQuoteScreen> {
                 children: _lines
                     .map((line) => ListTile(
                           title: Text(line.productName ?? line.description ?? ''),
-                          subtitle: Text('Qty: ${line.quantity}'),
+                          subtitle: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.remove, size: 18),
+                                onPressed: line.quantity > 1
+                                    ? () => setState(() => line.quantity--)
+                                    : null,
+                              ),
+                              Text('Qty: ${line.quantity}'),
+                              IconButton(
+                                icon: const Icon(Icons.add, size: 18),
+                                onPressed: () => setState(() => line.quantity++),
+                              ),
+                            ],
+                          ),
                           trailing: IconButton(
                             icon: const Icon(Icons.delete_outline),
                             onPressed: () => setState(() => _lines.remove(line)),
