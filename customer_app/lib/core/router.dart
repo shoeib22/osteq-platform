@@ -8,6 +8,7 @@ import '../features/cart/cart_screen.dart';
 import '../features/cart/checkout_screen.dart';
 import '../features/quotes/quotes_list_screen.dart';
 import '../features/quotes/new_quote_screen.dart';
+import '../features/quotes/quote_detail_screen.dart';
 import '../features/account/account_screen.dart';
 import '../features/orders/order_confirmation_screen.dart';
 import '../features/orders/order_history_screen.dart';
@@ -71,7 +72,11 @@ final router = GoRouter(
             builder: (context, state) => const QuotesListScreen(),
             routes: [
               GoRoute(path: 'new', name: 'newQuote', builder: (context, state) => const NewQuoteScreen()),
-              GoRoute(path: ':id', name: 'quoteDetail', builder: (context, state) => const QuotesListScreen()),
+              GoRoute(
+                path: ':id',
+                name: 'quoteDetail',
+                builder: (context, state) => QuoteDetailScreen(quoteId: state.pathParameters['id']!),
+              ),
             ],
           ),
         ]),
