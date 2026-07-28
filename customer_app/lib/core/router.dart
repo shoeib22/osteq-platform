@@ -3,6 +3,7 @@ import '../features/auth/login_screen.dart';
 import '../features/auth/signup_screen.dart';
 import '../features/catalog/category_list_screen.dart';
 import '../features/catalog/product_list_screen.dart';
+import '../features/catalog/product_detail_screen.dart';
 import '../features/cart/cart_screen.dart';
 import '../features/quotes/quotes_list_screen.dart';
 import '../features/account/account_screen.dart';
@@ -33,7 +34,9 @@ final router = GoRouter(
               GoRoute(
                 path: 'products/:productId',
                 name: 'productDetail',
-                builder: (context, state) => const CategoryListScreen(),
+                builder: (context, state) => ProductDetailScreen(
+                  productId: state.pathParameters['productId']!,
+                ),
               ),
             ],
           ),
