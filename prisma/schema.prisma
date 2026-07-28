@@ -1,0 +1,259 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ─── Auth / staff ──────────────────────────────────────────────────────────
+
+enum StaffRole {
+  ADMIN
+}
+
+/// Mirrors a Supabase auth.users row (same id) for Osteq staff/admins, the same way
+/// OsteqCustomerProfile mirrors one for customers — kept as a separate model since staff
+/// and customers are different account types with different access. Provisioned by hand
+/// (insert a matching row after creating the Supabase Auth user), same as this project's
+/// forerunner — there is no self-serve "become staff" flow by design.
+model Staff {
+  id        String    @id
+  email     String    @unique
+  fullName  String?
+  role      StaffRole @default(ADMIN)
+  createdAt DateTime  @default(now())
+
+  tradeApplicationsReviewed OsteqTradeApplication[]
+  quoteMessages             OsteqQuoteMessage[]
+
+  @@map("staff")
+}
+
+// ─── Osteq (AV equipment e-commerce) ────────────────────────────────────────
+
+enum OsteqAccountStatus {
+  PENDING
+  TRADE_APPROVED
+  REJECTED
+}
+
+/// Mirrors a Supabase auth.users row for an Osteq customer, the same way `Staff` mirrors
+/// one for staff — kept as a separate model, since customers must never be granted
+/// `Staff`/`StaffRole` access by this mirroring.
+model OsteqCustomerProfile {
+  id           String             @id
+  email        String             @unique
+  businessName String?
+  businessType String?
+  phone        String?
+  accountStatus OsteqAccountStatus @default(PENDING)
+  createdAt    DateTime           @default(now())
+
+  tradeApplications OsteqTradeApplication[]
+  cart              OsteqCart?
+  orders            OsteqOrder[]
+  quotes            OsteqQuote[]
+  quoteMessages     OsteqQuoteMessage[]
+
+  @@map("osteq_customer_profiles")
+}
+
+enum OsteqTradeApplicationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model OsteqTradeApplication {
+  id               String                       @id @default(uuid())
+  customerId       String
+  businessName     String
+  businessType     String
+  taxId            String?
+  phone            String
+  status           OsteqTradeApplicationStatus  @default(PENDING)
+  reviewedByProfileId String?
+  reviewedAt       DateTime?
+  rejectionReason  String?
+  createdAt        DateTime                     @default(now())
+
+  customer     OsteqCustomerProfile @relation(fields: [customerId], references: [id])
+  reviewedBy   Staff?               @relation(fields: [reviewedByProfileId], references: [id])
+
+  @@index([customerId])
+  @@index([status])
+  @@map("osteq_trade_applications")
+}
+
+model OsteqCategory {
+  id               String   @id @default(uuid())
+  name             String
+  slug             String   @unique
+  parentCategoryId String?
+
+  parentCategory OsteqCategory?  @relation("OsteqCategoryToSubcategory", fields: [parentCategoryId], references: [id])
+  subcategories  OsteqCategory[] @relation("OsteqCategoryToSubcategory")
+  products       OsteqProduct[]
+
+  @@map("osteq_categories")
+}
+
+model OsteqProduct {
+  id          String   @id @default(uuid())
+  categoryId  String
+  name        String
+  slug        String   @unique
+  description String?
+  specs       Json?
+  images      String[] @default([])
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  category OsteqCategory        @relation(fields: [categoryId], references: [id])
+  variants OsteqProductVariant[]
+
+  @@index([categoryId])
+  @@map("osteq_products")
+}
+
+model OsteqProductVariant {
+  id                 String   @id @default(uuid())
+  productId          String
+  sku                String   @unique
+  attributes         Json
+  retailPriceInPaise Int
+  tradePriceInPaise  Int
+  stockQuantity      Int      @default(0)
+  isActive           Boolean  @default(true)
+
+  product    OsteqProduct     @relation(fields: [productId], references: [id])
+  cartItems  OsteqCartItem[]
+  orderItems OsteqOrderItem[]
+  quoteItems OsteqQuoteItem[]
+
+  @@index([productId])
+  @@map("osteq_product_variants")
+}
+
+model OsteqCart {
+  id         String   @id @default(uuid())
+  customerId String   @unique
+
+  customer OsteqCustomerProfile @relation(fields: [customerId], references: [id])
+  items    OsteqCartItem[]
+
+  @@map("osteq_carts")
+}
+
+model OsteqCartItem {
+  id        String @id @default(uuid())
+  cartId    String
+  variantId String
+  quantity  Int
+
+  cart    OsteqCart           @relation(fields: [cartId], references: [id])
+  variant OsteqProductVariant @relation(fields: [variantId], references: [id])
+
+  @@unique([cartId, variantId])
+  @@map("osteq_cart_items")
+}
+
+enum OsteqOrderStatus {
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+}
+
+model OsteqOrder {
+  id               String           @id @default(uuid())
+  customerId       String
+  status           OsteqOrderStatus @default(PROCESSING)
+  shippingAddress  String
+  trackingNumber   String?
+  totalInPaise     Int
+  createdAt        DateTime         @default(now())
+
+  customer OsteqCustomerProfile @relation(fields: [customerId], references: [id])
+  items    OsteqOrderItem[]
+  quote    OsteqQuote?
+
+  @@index([customerId])
+  @@map("osteq_orders")
+}
+
+model OsteqOrderItem {
+  id              String @id @default(uuid())
+  orderId         String
+  variantId       String
+  quantity        Int
+  unitPriceInPaise Int
+
+  order   OsteqOrder          @relation(fields: [orderId], references: [id])
+  variant OsteqProductVariant @relation(fields: [variantId], references: [id])
+
+  @@index([orderId])
+  @@map("osteq_order_items")
+}
+
+enum OsteqQuoteStatus {
+  SUBMITTED
+  UNDER_REVIEW
+  QUOTED
+  REVISION_REQUESTED
+  ACCEPTED
+  REJECTED
+  CONVERTED_TO_ORDER
+}
+
+model OsteqQuote {
+  id               String           @id @default(uuid())
+  customerId       String
+  status           OsteqQuoteStatus @default(SUBMITTED)
+  convertedOrderId String?          @unique
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  customer       OsteqCustomerProfile @relation(fields: [customerId], references: [id])
+  convertedOrder OsteqOrder?          @relation(fields: [convertedOrderId], references: [id])
+  items          OsteqQuoteItem[]
+  messages       OsteqQuoteMessage[]
+
+  @@index([customerId])
+  @@map("osteq_quotes")
+}
+
+model OsteqQuoteItem {
+  id                    String  @id @default(uuid())
+  quoteId               String
+  productVariantId      String?
+  description           String?
+  quantity              Int
+  quotedUnitPriceInPaise Int?
+  notes                 String?
+
+  quote   OsteqQuote           @relation(fields: [quoteId], references: [id])
+  variant OsteqProductVariant? @relation(fields: [productVariantId], references: [id])
+
+  @@index([quoteId])
+  @@map("osteq_quote_items")
+}
+
+model OsteqQuoteMessage {
+  id                    String   @id @default(uuid())
+  quoteId               String
+  authorProfileId       String?
+  authorCustomerId      String?
+  body                  String
+  createdAt             DateTime @default(now())
+
+  quote          OsteqQuote            @relation(fields: [quoteId], references: [id])
+  authorProfile  Staff?                @relation(fields: [authorProfileId], references: [id])
+  authorCustomer OsteqCustomerProfile? @relation(fields: [authorCustomerId], references: [id])
+
+  @@index([quoteId])
+  @@map("osteq_quote_messages")
+}
