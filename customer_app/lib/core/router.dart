@@ -15,8 +15,10 @@ import '../features/orders/order_history_screen.dart';
 import '../features/orders/order_detail_screen.dart';
 import '../features/shell/app_shell.dart';
 import '../features/trade/trade_application_screen.dart';
+import 'navigator_key.dart';
 
 final router = GoRouter(
+  navigatorKey: rootNavigatorKey,
   initialLocation: '/catalog',
   routes: [
     GoRoute(path: '/login', name: 'login', builder: (context, state) => const LoginScreen()),

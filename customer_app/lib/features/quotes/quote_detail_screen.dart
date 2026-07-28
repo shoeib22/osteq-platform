@@ -38,6 +38,7 @@ class _QuoteDetailScreenState extends ConsumerState<QuoteDetailScreen> {
       await ref
           .read(quotesRepositoryProvider)
           .addMessage(widget.quoteId, body, requestRevision: requestRevision);
+      if (!mounted) return;
       _messageController.clear();
       ref.invalidate(quoteDetailProvider(widget.quoteId));
     } on ApiException catch (e) {

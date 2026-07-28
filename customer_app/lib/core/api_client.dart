@@ -1,6 +1,8 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'api_exception.dart';
+import 'navigator_key.dart';
 import 'supabase_client.dart';
 
 const apiBaseUrl = String.fromEnvironment(
@@ -26,6 +28,12 @@ class OsteqApiClient {
           final message = data is Map && data['error'] is String
               ? data['error'] as String
               : 'Something went wrong. Please try again.';
+          if (error.response?.statusCode == 401) {
+            final context = rootNavigatorKey.currentContext;
+            if (context != null && context.mounted) {
+              GoRouter.of(context).pushNamed('login');
+            }
+          }
           handler.reject(
             DioException(
               requestOptions: error.requestOptions,

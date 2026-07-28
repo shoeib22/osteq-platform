@@ -1,7 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/api_client.dart';
-import '../orders/order_model.dart';
 import 'quote_model.dart';
 
 class QuotesRepository {
@@ -48,13 +47,12 @@ class QuotesRepository {
     }
   }
 
-  Future<Order> respond(String quoteId, String decision, {String? shippingAddress}) async {
+  Future<void> respond(String quoteId, String decision, {String? shippingAddress}) async {
     try {
-      final res = await _dio.post('/api/osteq/quotes/$quoteId/respond', data: {
+      await _dio.post('/api/osteq/quotes/$quoteId/respond', data: {
         'decision': decision,
         if (shippingAddress != null) 'shippingAddress': shippingAddress,
       });
-      return Order.fromJson(res.data['order'] as Map<String, dynamic>);
     } on DioException catch (e) {
       throwApiException(e);
     }
