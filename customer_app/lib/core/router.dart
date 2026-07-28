@@ -5,8 +5,12 @@ import '../features/catalog/category_list_screen.dart';
 import '../features/catalog/product_list_screen.dart';
 import '../features/catalog/product_detail_screen.dart';
 import '../features/cart/cart_screen.dart';
+import '../features/cart/checkout_screen.dart';
 import '../features/quotes/quotes_list_screen.dart';
 import '../features/account/account_screen.dart';
+import '../features/orders/order_confirmation_screen.dart';
+import '../features/orders/order_history_screen.dart';
+import '../features/orders/order_detail_screen.dart';
 import '../features/shell/app_shell.dart';
 
 final router = GoRouter(
@@ -47,11 +51,13 @@ final router = GoRouter(
             name: 'cart',
             builder: (context, state) => const CartScreen(),
             routes: [
-              GoRoute(path: 'checkout', name: 'checkout', builder: (context, state) => const CartScreen()),
+              GoRoute(path: 'checkout', name: 'checkout', builder: (context, state) => const CheckoutScreen()),
               GoRoute(
                 path: 'confirmation/:orderId',
                 name: 'orderConfirmation',
-                builder: (context, state) => const CartScreen(),
+                builder: (context, state) => OrderConfirmationScreen(
+                  orderId: state.pathParameters['orderId']!,
+                ),
               ),
             ],
           ),
@@ -74,8 +80,12 @@ final router = GoRouter(
             builder: (context, state) => const AccountScreen(),
             routes: [
               GoRoute(path: 'trade', name: 'tradeApplication', builder: (context, state) => const AccountScreen()),
-              GoRoute(path: 'orders', name: 'orderHistory', builder: (context, state) => const AccountScreen()),
-              GoRoute(path: 'orders/:id', name: 'orderDetail', builder: (context, state) => const AccountScreen()),
+              GoRoute(path: 'orders', name: 'orderHistory', builder: (context, state) => const OrderHistoryScreen()),
+              GoRoute(
+                path: 'orders/:id',
+                name: 'orderDetail',
+                builder: (context, state) => OrderDetailScreen(orderId: state.pathParameters['id']!),
+              ),
             ],
           ),
         ]),
