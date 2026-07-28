@@ -17,6 +17,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool _submitting = false;
   String? _error;
 
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
   Future<void> _submit() async {
     setState(() {
       _submitting = true;
@@ -29,9 +36,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           );
       if (mounted) Navigator.of(context).pop();
     } on ApiException catch (e) {
-      setState(() => _error = e.message);
+      if (mounted) setState(() => _error = e.message);
     } catch (e) {
-      setState(() => _error = 'Sign in failed. Check your email and password.');
+      if (mounted) setState(() => _error = 'Sign in failed. Check your email and password.');
     } finally {
       if (mounted) setState(() => _submitting = false);
     }

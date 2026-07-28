@@ -17,6 +17,13 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   bool _submitting = false;
   String? _error;
 
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
   Future<void> _submit() async {
     setState(() {
       _submitting = true;
@@ -29,9 +36,9 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
           );
       if (mounted) Navigator.of(context).pop();
     } on ApiException catch (e) {
-      setState(() => _error = e.message);
+      if (mounted) setState(() => _error = e.message);
     } catch (e) {
-      setState(() => _error = 'Sign up failed. Please try again.');
+      if (mounted) setState(() => _error = 'Sign up failed. Please try again.');
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
