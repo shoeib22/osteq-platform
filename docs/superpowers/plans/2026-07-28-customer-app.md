@@ -2600,6 +2600,12 @@ class _NewQuoteScreenState extends ConsumerState<NewQuoteScreen> {
   bool _submitting = false;
   String? _error;
 
+  @override
+  void dispose() {
+    _customDescriptionController.dispose();
+    super.dispose();
+  }
+
   void _addCustomLine() {
     final description = _customDescriptionController.text.trim();
     if (description.isEmpty) return;
@@ -2621,9 +2627,11 @@ class _NewQuoteScreenState extends ConsumerState<NewQuoteScreen> {
       ),
     );
     if (selected == null || selected.variants.isEmpty) return;
-    setState(() {
-      _lines.add(_DraftLine(variant: selected.variants.first, productName: selected.name));
-    });
+    if (mounted) {
+      setState(() {
+        _lines.add(_DraftLine(variant: selected.variants.first, productName: selected.name));
+      });
+    }
   }
 
   Future<void> _submit() async {
@@ -2644,7 +2652,7 @@ class _NewQuoteScreenState extends ConsumerState<NewQuoteScreen> {
       ref.invalidate(quotesProvider);
       if (mounted) context.pop();
     } on ApiException catch (e) {
-      setState(() => _error = e.message);
+      if (mounted) setState(() => _error = e.message);
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
@@ -2776,6 +2784,13 @@ class _QuoteDetailScreenState extends ConsumerState<QuoteDetailScreen> {
   bool _busy = false;
   String? _error;
 
+  @override
+  void dispose() {
+    _messageController.dispose();
+    _addressController.dispose();
+    super.dispose();
+  }
+
   Future<void> _sendMessage({required bool requestRevision}) async {
     final body = _messageController.text.trim();
     if (body.isEmpty) return;
@@ -2790,7 +2805,7 @@ class _QuoteDetailScreenState extends ConsumerState<QuoteDetailScreen> {
       _messageController.clear();
       ref.invalidate(quoteDetailProvider(widget.quoteId));
     } on ApiException catch (e) {
-      setState(() => _error = e.message);
+      if (mounted) setState(() => _error = e.message);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -2814,7 +2829,7 @@ class _QuoteDetailScreenState extends ConsumerState<QuoteDetailScreen> {
       ref.invalidate(quotesProvider);
       if (mounted) context.pop();
     } on ApiException catch (e) {
-      setState(() => _error = e.message);
+      if (mounted) setState(() => _error = e.message);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
