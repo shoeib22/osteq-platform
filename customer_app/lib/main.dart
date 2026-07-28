@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'core/router.dart';
+import 'core/supabase_client.dart';
 import 'theme/app_theme.dart';
 
-void main() {
-  runApp(const OsteqApp());
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await initSupabase();
+  runApp(const ProviderScope(child: OsteqApp()));
 }
 
 class OsteqApp extends StatelessWidget {
@@ -10,11 +15,11 @@ class OsteqApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    return MaterialApp.router(
       title: 'Osteq',
       theme: appTheme,
       debugShowCheckedModeBanner: false,
-      home: const Scaffold(body: Center(child: Text('Osteq'))),
+      routerConfig: router,
     );
   }
 }
