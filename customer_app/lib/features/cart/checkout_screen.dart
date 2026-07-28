@@ -17,6 +17,21 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   bool _submitting = false;
   String? _error;
 
+  @override
+  void initState() {
+    super.initState();
+    _addressController.addListener(_onAddressChanged);
+  }
+
+  @override
+  void dispose() {
+    _addressController.removeListener(_onAddressChanged);
+    _addressController.dispose();
+    super.dispose();
+  }
+
+  void _onAddressChanged() => setState(() {});
+
   Future<void> _placeOrder() async {
     setState(() {
       _submitting = true;
@@ -30,7 +45,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         context.pushReplacementNamed('orderConfirmation', pathParameters: {'orderId': order.id});
       }
     } on ApiException catch (e) {
-      setState(() => _error = e.message);
+      if (mounted) setState(() => _error = e.message);
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
