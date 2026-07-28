@@ -20,6 +20,15 @@ class _TradeApplicationScreenState extends ConsumerState<TradeApplicationScreen>
   String? _error;
   bool _submitted = false;
 
+  @override
+  void dispose() {
+    _businessNameController.dispose();
+    _businessTypeController.dispose();
+    _phoneController.dispose();
+    _taxIdController.dispose();
+    super.dispose();
+  }
+
   Future<void> _submit() async {
     setState(() {
       _submitting = true;
@@ -32,9 +41,9 @@ class _TradeApplicationScreenState extends ConsumerState<TradeApplicationScreen>
             phone: _phoneController.text.trim(),
             taxId: _taxIdController.text.trim().isEmpty ? null : _taxIdController.text.trim(),
           );
-      setState(() => _submitted = true);
+      if (mounted) setState(() => _submitted = true);
     } on ApiException catch (e) {
-      setState(() => _error = e.message);
+      if (mounted) setState(() => _error = e.message);
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
