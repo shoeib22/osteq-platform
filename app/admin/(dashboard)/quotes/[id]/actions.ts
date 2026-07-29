@@ -27,6 +27,7 @@ export async function priceQuote(formData: FormData): Promise<{ error?: string }
   }
 
   revalidatePath(`/admin/quotes/${quoteId}`);
+  revalidatePath("/admin/quotes");
   return null;
 }
 

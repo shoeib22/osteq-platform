@@ -24,6 +24,7 @@ export function ProductEditForm({ product }: { product: OsteqProduct }) {
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-2 rounded border p-4">
       <input type="hidden" name="productId" value={product.id} />
+      <input type="hidden" name="categoryId" value={product.categoryId} />
       <label className="text-sm">
         Name
         <input

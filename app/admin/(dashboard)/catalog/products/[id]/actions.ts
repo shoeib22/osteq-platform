@@ -5,6 +5,7 @@ import { adminApiFetch } from "@/lib/admin/api-fetch";
 
 export async function updateProduct(formData: FormData): Promise<{ error?: string } | null> {
   const productId = String(formData.get("productId") ?? "");
+  const categoryId = String(formData.get("categoryId") ?? "");
   const name = String(formData.get("name") ?? "");
   const description = String(formData.get("description") ?? "");
   const isActive = formData.get("isActive") === "on";
@@ -18,6 +19,9 @@ export async function updateProduct(formData: FormData): Promise<{ error?: strin
   }
 
   revalidatePath(`/admin/catalog/products/${productId}`);
+  if (categoryId) {
+    revalidatePath(`/admin/catalog/${categoryId}`);
+  }
   return null;
 }
 
