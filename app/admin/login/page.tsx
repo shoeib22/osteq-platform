@@ -1,19 +1,22 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { loginAction } from "./actions";
 
 export default function AdminLoginPage() {
   const [error, setError] = useState<string | undefined>();
-  const [isPending, startTransition] = useTransition();
+  const [isPending, setIsPending] = useState(false);
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
-    startTransition(async () => {
+    setIsPending(true);
+    try {
       const result = await loginAction(formData);
       setError(result?.error);
-    });
+    } finally {
+      setIsPending(false);
+    }
   }
 
   return (
