@@ -19,7 +19,12 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
 
   const body = await request.json();
   const status = body.status;
-  const trackingNumber = typeof body.trackingNumber === "string" ? body.trackingNumber : undefined;
+  const trackingNumber =
+    body.trackingNumber === null || body.trackingNumber === ""
+      ? null
+      : typeof body.trackingNumber === "string"
+        ? body.trackingNumber
+        : undefined;
   if (typeof status !== "string" || !VALID_STATUSES.has(status)) {
     return NextResponse.json({ error: "A valid status is required." }, { status: 400 });
   }
