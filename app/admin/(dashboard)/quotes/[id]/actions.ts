@@ -9,7 +9,11 @@ export async function priceQuote(formData: FormData): Promise<{ error?: string }
   const lines = itemIds
     .map((itemId) => {
       const price = formData.get(`price-${itemId}`);
-      const quotedUnitPriceInPaise = Number(price);
+      const priceStr = typeof price === "string" ? price.trim() : "";
+      if (priceStr === "") {
+        return null;
+      }
+      const quotedUnitPriceInPaise = Number(priceStr);
       return Number.isFinite(quotedUnitPriceInPaise) ? { itemId, quotedUnitPriceInPaise } : null;
     })
     .filter((line): line is { itemId: string; quotedUnitPriceInPaise: number } => line !== null);
