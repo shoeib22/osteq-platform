@@ -1,17 +1,24 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireOsteqCustomerAccess } from "@/lib/osteq/auth";
+import { requireStaffAccess } from "@/lib/auth";
 
 export async function GET(request: NextRequest) {
-  let customerId: string;
+  let customerId: string | null = null;
+  let isStaff = false;
   try {
-    ({ customerId } = await requireOsteqCustomerAccess(request));
+    await requireStaffAccess();
+    isStaff = true;
   } catch {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    try {
+      ({ customerId } = await requireOsteqCustomerAccess(request));
+    } catch {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
   }
 
   const orders = await prisma.osteqOrder.findMany({
-    where: { customerId },
+    where: isStaff ? {} : { customerId: customerId! },
     include: { items: true },
     orderBy: { createdAt: "desc" },
   });
