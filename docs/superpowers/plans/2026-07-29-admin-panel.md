@@ -6,12 +6,12 @@
 
 **Architecture:** New `app/admin/*` routes in this repo. Server Components read Prisma directly; mutations go through the existing, already-reviewed `/api/osteq/*` routes via a shared `fetch`-based helper that forwards the staff session cookie — reusing every race-condition guard already built rather than duplicating them. Three small backend gaps (category edit, variant edit, staff-facing order list) are added first since later tasks depend on them.
 
-**Tech Stack:** Next.js 14 App Router (Server Components + Server Actions), Prisma, React 18.3 (`useFormState`/`useFormStatus` from `react-dom` — this repo is on React 18, not 19, so `useActionState` from `react` is NOT available), Tailwind (plain utility classes only — no custom theme; visual polish is explicitly deferred).
+**Tech Stack:** Next.js 14 App Router (Server Components + Server Actions), Prisma, React 18.3 (`useState` + `useTransition` from `react` for form state/pending — `useFormState`/`useFormStatus` from `react-dom` and `useActionState` from `react` are NOT available: verified empirically that the installed `react-dom@18.3.1` does not export the first two, and `useActionState` is React-19-only), Tailwind (plain utility classes only — no custom theme; visual polish is explicitly deferred).
 
 ## Global Constraints
 
 - No test runner exists in this repo — verification is manual (`npx tsc --noEmit`, `npm run build`, and a browser walkthrough in the final task).
-- This repo is on React 18.3.1 (`package.json`), not React 19 — every form must use `useFormState` + `useFormStatus` from `react-dom`, never `useActionState` from `react` (a common React-19-only API that does not exist here).
+- **Do not use `useFormState`/`useFormStatus` (from `react-dom`) or `useActionState` (from `react`) anywhere in this plan.** A prior task in this same plan verified directly (`node -e "require('react-dom').useFormState"` → `undefined`) that the installed `react-dom@18.3.1` does not export these — `tsc --noEmit` will falsely report no error, because Next.js's ambient `react-dom/experimental` type augmentation lies about what's exported at runtime, but the app throws `TypeError` at render. Every form instead: (1) is a `"use client"` component owning its own `const [error, setError] = useState<string | undefined>()` and `const [isPending, startTransition] = useTransition()`; (2) has a plain `onSubmit={(e) => { e.preventDefault(); const formData = new FormData(e.currentTarget); startTransition(async () => { const result = await someAction(formData); setError(result?.error); }); }}` handler; (3) calls the imported Server Action directly as a plain async function (Server Actions are callable async functions from client code regardless of React version — only the special hooks are unavailable); (4) renders `<SubmitButton pending={isPending}>Label</SubmitButton>` (Task 3's `SubmitButton` takes `pending` as an explicit prop, not via `useFormStatus()` context) and `{error && <span className="text-xs text-red-600">{error}</span>}`. Every Server Action's signature drops the unused `_prevState` parameter `useFormState` used to require: `async function someAction(formData: FormData): Promise<{ error?: string } | null>`.
 - Server Actions never talk to Prisma directly for mutations — every mutation goes through `adminApiFetch` (Task 3) calling the existing `/api/osteq/*` route, so race-condition guards already built and reviewed in the backend are never duplicated.
 - Match existing code style: no comments explaining *what* code does, only non-obvious *why*.
 - Money is always `Int`/`*InPaise` — the admin UI shows raw paise values (no currency formatting) matching the rest of this repo's current state; formatting is part of the deferred visual-polish pass, not this plan.
@@ -233,7 +233,7 @@ git commit -m "Add staff bypass to order list and detail routes"
 
 **Interfaces:**
 - Consumes: `requireStaffAccess` (`@/lib/auth`), `createClient` (`@/lib/supabase/server`).
-- Produces: `export async function adminApiFetch<T>(path: string, options?: { method?: string; body?: unknown }): Promise<{ data?: T; error?: string }>` — consumed by every `actions.ts` in Tasks 4-11. `export function SubmitButton({ children, className? }): JSX.Element` — a client component wrapping `useFormStatus()`, consumed by every form in Tasks 4-11 in place of a hand-rolled disabled/pending button. `logoutAction()`.
+- Produces: `export async function adminApiFetch<T>(path: string, options?: { method?: string; body?: unknown }): Promise<{ data?: T; error?: string }>` — consumed by every `actions.ts` in Tasks 4-11. `export function SubmitButton({ pending: boolean, children, className? }): JSX.Element` — a plain presentational client component (its `pending` state is passed in as a prop by the parent form, which owns it via `useTransition` — see Global Constraints), consumed by every form in Tasks 4-11 in place of a hand-rolled disabled/pending button. `logoutAction()`.
 
 - [ ] **Step 1: Write the admin API fetch helper**
 
@@ -279,16 +279,15 @@ export async function adminApiFetch<T>(
 ```tsx
 "use client";
 
-import { useFormStatus } from "react-dom";
-
 export function SubmitButton({
+  pending,
   children,
   className,
 }: {
+  pending: boolean;
   children: React.ReactNode;
   className?: string;
 }) {
-  const { pending } = useFormStatus();
   return (
     <button
       type="submit"
@@ -301,6 +300,11 @@ export function SubmitButton({
 }
 ```
 
+This is a plain presentational component — the parent form component owns its own pending
+state via `useTransition` (see the Global Constraints section) and passes it down as a prop,
+rather than `SubmitButton` deriving it via `useFormStatus()` context (which isn't available —
+see Global Constraints).
+
 - [ ] **Step 3: Write the login Server Action**
 
 ```typescript
@@ -309,10 +313,7 @@ export function SubmitButton({
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 
-export async function loginAction(
-  _prevState: { error?: string } | null,
-  formData: FormData,
-): Promise<{ error?: string } | null> {
+export async function loginAction(formData: FormData): Promise<{ error?: string } | null> {
   const email = String(formData.get("email") ?? "");
   const password = String(formData.get("password") ?? "");
 
@@ -331,15 +332,25 @@ export async function loginAction(
 ```tsx
 "use client";
 
-import { useFormState } from "react-dom";
+import { useState, useTransition } from "react";
 import { loginAction } from "./actions";
 
 export default function AdminLoginPage() {
-  const [state, formAction] = useFormState(loginAction, null);
+  const [error, setError] = useState<string | undefined>();
+  const [isPending, startTransition] = useTransition();
+
+  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    startTransition(async () => {
+      const result = await loginAction(formData);
+      setError(result?.error);
+    });
+  }
 
   return (
     <div className="flex min-h-screen items-center justify-center">
-      <form action={formAction} className="w-full max-w-sm space-y-4 p-6">
+      <form onSubmit={handleSubmit} className="w-full max-w-sm space-y-4 p-6">
         <h1 className="text-xl font-semibold">Osteq Admin</h1>
         <input
           name="email"
@@ -355,21 +366,15 @@ export default function AdminLoginPage() {
           required
           className="w-full rounded border px-3 py-2"
         />
-        {state?.error && <p className="text-sm text-red-600">{state.error}</p>}
-        <button type="submit" className="w-full rounded bg-black px-3 py-2 text-white">
-          Sign in
+        {error && <p className="text-sm text-red-600">{error}</p>}
+        <button type="submit" disabled={isPending} className="w-full rounded bg-black px-3 py-2 text-white disabled:opacity-50">
+          {isPending ? "Signing in..." : "Sign in"}
         </button>
       </form>
     </div>
   );
 }
 ```
-
-Note: this page's own submit button doesn't use `SubmitButton`/`useFormStatus` deliberately —
-`useFormStatus` requires being called in a component nested *inside* the `<form>`, and this
-page is already a client component defining the form itself, so the simplest correct option
-here is a plain button. Every later task's forms live in server-component pages with a
-separate client-component form, where `SubmitButton` is the right fit.
 
 - [ ] **Step 5: Write the logout action**
 
@@ -524,10 +529,7 @@ export default async function TradeApplicationsPage({
 import { revalidatePath } from "next/cache";
 import { adminApiFetch } from "@/lib/admin/api-fetch";
 
-export async function reviewTradeApplication(
-  _prevState: { error?: string } | null,
-  formData: FormData,
-): Promise<{ error?: string } | null> {
+export async function reviewTradeApplication(formData: FormData): Promise<{ error?: string } | null> {
   const applicationId = String(formData.get("applicationId") ?? "");
   const decision = String(formData.get("decision") ?? "");
   const rejectionReason = String(formData.get("rejectionReason") ?? "");
@@ -547,25 +549,37 @@ export async function reviewTradeApplication(
 
 - [ ] **Step 3: Write the approve/reject client component**
 
+Both the Approve and Reject forms submit through the same handler — `decision` travels as a
+hidden field in each form's own `FormData`, so one `handleSubmit` correctly serves both.
+
 ```tsx
 "use client";
 
-import { useFormState } from "react-dom";
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { reviewTradeApplication } from "./actions";
 import { SubmitButton } from "../SubmitButton";
 
 export function TradeApplicationActions({ applicationId }: { applicationId: string }) {
-  const [state, formAction] = useFormState(reviewTradeApplication, null);
+  const [error, setError] = useState<string | undefined>();
+  const [isPending, startTransition] = useTransition();
   const [showReject, setShowReject] = useState(false);
+
+  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    startTransition(async () => {
+      const result = await reviewTradeApplication(formData);
+      setError(result?.error);
+    });
+  }
 
   return (
     <div className="flex flex-col gap-2">
       <div className="flex gap-2">
-        <form action={formAction}>
+        <form onSubmit={handleSubmit}>
           <input type="hidden" name="applicationId" value={applicationId} />
           <input type="hidden" name="decision" value="APPROVED" />
-          <SubmitButton className="rounded bg-green-600 px-2 py-1 text-sm text-white disabled:opacity-50">
+          <SubmitButton pending={isPending} className="rounded bg-green-600 px-2 py-1 text-sm text-white disabled:opacity-50">
             Approve
           </SubmitButton>
         </form>
@@ -578,16 +592,16 @@ export function TradeApplicationActions({ applicationId }: { applicationId: stri
         </button>
       </div>
       {showReject && (
-        <form action={formAction} className="flex gap-2">
+        <form onSubmit={handleSubmit} className="flex gap-2">
           <input type="hidden" name="applicationId" value={applicationId} />
           <input type="hidden" name="decision" value="REJECTED" />
           <input name="rejectionReason" placeholder="Reason" className="rounded border px-2 py-1 text-sm" />
-          <SubmitButton className="rounded bg-red-600 px-2 py-1 text-sm text-white disabled:opacity-50">
+          <SubmitButton pending={isPending} className="rounded bg-red-600 px-2 py-1 text-sm text-white disabled:opacity-50">
             Confirm reject
           </SubmitButton>
         </form>
       )}
-      {state?.error && <p className="text-xs text-red-600">{state.error}</p>}
+      {error && <p className="text-xs text-red-600">{error}</p>}
     </div>
   );
 }
@@ -658,10 +672,7 @@ export default async function CatalogPage() {
 import { revalidatePath } from "next/cache";
 import { adminApiFetch } from "@/lib/admin/api-fetch";
 
-export async function saveCategory(
-  _prevState: { error?: string } | null,
-  formData: FormData,
-): Promise<{ error?: string } | null> {
+export async function saveCategory(formData: FormData): Promise<{ error?: string } | null> {
   const categoryId = String(formData.get("categoryId") ?? "");
   const name = String(formData.get("name") ?? "");
   const slug = String(formData.get("slug") ?? "");
@@ -685,7 +696,7 @@ export async function saveCategory(
 ```tsx
 "use client";
 
-import { useFormState } from "react-dom";
+import { useState, useTransition } from "react";
 import type { OsteqCategory } from "@prisma/client";
 import { saveCategory } from "./actions";
 import { SubmitButton } from "../SubmitButton";
@@ -697,10 +708,20 @@ export function CategoryForm({
   mode: "create" | "edit";
   category?: OsteqCategory;
 }) {
-  const [state, formAction] = useFormState(saveCategory, null);
+  const [error, setError] = useState<string | undefined>();
+  const [isPending, startTransition] = useTransition();
+
+  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    startTransition(async () => {
+      const result = await saveCategory(formData);
+      setError(result?.error);
+    });
+  }
 
   return (
-    <form action={formAction} className="flex items-center gap-2">
+    <form onSubmit={handleSubmit} className="flex items-center gap-2">
       {category && <input type="hidden" name="categoryId" value={category.id} />}
       <input
         name="name"
@@ -716,10 +737,10 @@ export function CategoryForm({
         required
         className="rounded border px-2 py-1 text-sm"
       />
-      <SubmitButton className="rounded bg-black px-2 py-1 text-sm text-white disabled:opacity-50">
+      <SubmitButton pending={isPending} className="rounded bg-black px-2 py-1 text-sm text-white disabled:opacity-50">
         {mode === "create" ? "Add" : "Save"}
       </SubmitButton>
-      {state?.error && <span className="text-xs text-red-600">{state.error}</span>}
+      {error && <span className="text-xs text-red-600">{error}</span>}
     </form>
   );
 }
@@ -802,10 +823,7 @@ export default async function CategoryDetailPage({
 import { revalidatePath } from "next/cache";
 import { adminApiFetch } from "@/lib/admin/api-fetch";
 
-export async function createProduct(
-  _prevState: { error?: string } | null,
-  formData: FormData,
-): Promise<{ error?: string } | null> {
+export async function createProduct(formData: FormData): Promise<{ error?: string } | null> {
   const categoryId = String(formData.get("categoryId") ?? "");
   const name = String(formData.get("name") ?? "");
   const slug = String(formData.get("slug") ?? "");
@@ -829,23 +847,33 @@ export async function createProduct(
 ```tsx
 "use client";
 
-import { useFormState } from "react-dom";
+import { useState, useTransition } from "react";
 import { createProduct } from "./actions";
 import { SubmitButton } from "../../SubmitButton";
 
 export function ProductForm({ categoryId }: { categoryId: string }) {
-  const [state, formAction] = useFormState(createProduct, null);
+  const [error, setError] = useState<string | undefined>();
+  const [isPending, startTransition] = useTransition();
+
+  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    startTransition(async () => {
+      const result = await createProduct(formData);
+      setError(result?.error);
+    });
+  }
 
   return (
-    <form action={formAction} className="flex flex-wrap items-center gap-2">
+    <form onSubmit={handleSubmit} className="flex flex-wrap items-center gap-2">
       <input type="hidden" name="categoryId" value={categoryId} />
       <input name="name" placeholder="Name" required className="rounded border px-2 py-1 text-sm" />
       <input name="slug" placeholder="slug" required className="rounded border px-2 py-1 text-sm" />
       <input name="description" placeholder="Description" className="rounded border px-2 py-1 text-sm" />
-      <SubmitButton className="rounded bg-black px-2 py-1 text-sm text-white disabled:opacity-50">
+      <SubmitButton pending={isPending} className="rounded bg-black px-2 py-1 text-sm text-white disabled:opacity-50">
         Add
       </SubmitButton>
-      {state?.error && <span className="text-xs text-red-600">{state.error}</span>}
+      {error && <span className="text-xs text-red-600">{error}</span>}
     </form>
   );
 }
@@ -937,10 +965,7 @@ export default async function ProductDetailPage({ params }: { params: { id: stri
 import { revalidatePath } from "next/cache";
 import { adminApiFetch } from "@/lib/admin/api-fetch";
 
-export async function updateProduct(
-  _prevState: { error?: string } | null,
-  formData: FormData,
-): Promise<{ error?: string } | null> {
+export async function updateProduct(formData: FormData): Promise<{ error?: string } | null> {
   const productId = String(formData.get("productId") ?? "");
   const name = String(formData.get("name") ?? "");
   const description = String(formData.get("description") ?? "");
@@ -958,10 +983,7 @@ export async function updateProduct(
   return null;
 }
 
-export async function createVariant(
-  _prevState: { error?: string } | null,
-  formData: FormData,
-): Promise<{ error?: string } | null> {
+export async function createVariant(formData: FormData): Promise<{ error?: string } | null> {
   const productId = String(formData.get("productId") ?? "");
   const sku = String(formData.get("sku") ?? "");
   const attributeName = String(formData.get("attributeName") ?? "").trim();
@@ -988,10 +1010,7 @@ export async function createVariant(
   return null;
 }
 
-export async function updateVariant(
-  _prevState: { error?: string } | null,
-  formData: FormData,
-): Promise<{ error?: string } | null> {
+export async function updateVariant(formData: FormData): Promise<{ error?: string } | null> {
   const productId = String(formData.get("productId") ?? "");
   const variantId = String(formData.get("variantId") ?? "");
   const retailPriceInPaise = Number(formData.get("retailPriceInPaise"));
@@ -1017,16 +1036,26 @@ export async function updateVariant(
 ```tsx
 "use client";
 
-import { useFormState } from "react-dom";
+import { useState, useTransition } from "react";
 import type { OsteqProduct } from "@prisma/client";
 import { updateProduct } from "./actions";
 import { SubmitButton } from "../../../SubmitButton";
 
 export function ProductEditForm({ product }: { product: OsteqProduct }) {
-  const [state, formAction] = useFormState(updateProduct, null);
+  const [error, setError] = useState<string | undefined>();
+  const [isPending, startTransition] = useTransition();
+
+  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    startTransition(async () => {
+      const result = await updateProduct(formData);
+      setError(result?.error);
+    });
+  }
 
   return (
-    <form action={formAction} className="flex flex-col gap-2 rounded border p-4">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-2 rounded border p-4">
       <input type="hidden" name="productId" value={product.id} />
       <label className="text-sm">
         Name
@@ -1049,10 +1078,10 @@ export function ProductEditForm({ product }: { product: OsteqProduct }) {
         <input type="checkbox" name="isActive" defaultChecked={product.isActive} />
         Active
       </label>
-      <SubmitButton className="w-fit rounded bg-black px-3 py-1 text-sm text-white disabled:opacity-50">
+      <SubmitButton pending={isPending} className="w-fit rounded bg-black px-3 py-1 text-sm text-white disabled:opacity-50">
         Save
       </SubmitButton>
-      {state?.error && <span className="text-xs text-red-600">{state.error}</span>}
+      {error && <span className="text-xs text-red-600">{error}</span>}
     </form>
   );
 }
@@ -1063,15 +1092,25 @@ export function ProductEditForm({ product }: { product: OsteqProduct }) {
 ```tsx
 "use client";
 
-import { useFormState } from "react-dom";
+import { useState, useTransition } from "react";
 import { createVariant } from "./actions";
 import { SubmitButton } from "../../../SubmitButton";
 
 export function VariantForm({ productId }: { productId: string }) {
-  const [state, formAction] = useFormState(createVariant, null);
+  const [error, setError] = useState<string | undefined>();
+  const [isPending, startTransition] = useTransition();
+
+  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    startTransition(async () => {
+      const result = await createVariant(formData);
+      setError(result?.error);
+    });
+  }
 
   return (
-    <form action={formAction} className="flex flex-wrap items-center gap-2">
+    <form onSubmit={handleSubmit} className="flex flex-wrap items-center gap-2">
       <input type="hidden" name="productId" value={productId} />
       <input name="sku" placeholder="SKU" required className="rounded border px-2 py-1 text-sm" />
       <input
@@ -1105,10 +1144,10 @@ export function VariantForm({ productId }: { productId: string }) {
         defaultValue={0}
         className="w-24 rounded border px-2 py-1 text-sm"
       />
-      <SubmitButton className="rounded bg-black px-2 py-1 text-sm text-white disabled:opacity-50">
+      <SubmitButton pending={isPending} className="rounded bg-black px-2 py-1 text-sm text-white disabled:opacity-50">
         Add
       </SubmitButton>
-      {state?.error && <span className="text-xs text-red-600">{state.error}</span>}
+      {error && <span className="text-xs text-red-600">{error}</span>}
     </form>
   );
 }
@@ -1116,10 +1155,16 @@ export function VariantForm({ productId }: { productId: string }) {
 
 - [ ] **Step 5: Write the per-variant edit row**
 
+The `onSubmit` handler's `new FormData(event.currentTarget)` still correctly picks up every
+input associated with this `<form>` via the `form={formId}` attribute, exactly as it would
+for a native form submission — this behavior comes from the browser's form-association
+model, not from `useFormState`, so the earlier table-row-form pattern is unaffected by
+this plan's hook change.
+
 ```tsx
 "use client";
 
-import { useFormState } from "react-dom";
+import { useState, useTransition } from "react";
 import type { OsteqProductVariant } from "@prisma/client";
 import { updateVariant } from "./actions";
 import { SubmitButton } from "../../../SubmitButton";
@@ -1131,8 +1176,18 @@ export function VariantEditForm({
   productId: string;
   variant: OsteqProductVariant;
 }) {
-  const [state, formAction] = useFormState(updateVariant, null);
+  const [error, setError] = useState<string | undefined>();
+  const [isPending, startTransition] = useTransition();
   const formId = `variant-form-${variant.id}`;
+
+  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    startTransition(async () => {
+      const result = await updateVariant(formData);
+      setError(result?.error);
+    });
+  }
 
   return (
     <tr className="border-b">
@@ -1169,14 +1224,14 @@ export function VariantEditForm({
         <input type="checkbox" name="isActive" defaultChecked={variant.isActive} form={formId} />
       </td>
       <td className="p-2">
-        <form id={formId} action={formAction}>
+        <form id={formId} onSubmit={handleSubmit}>
           <input type="hidden" name="productId" value={productId} />
           <input type="hidden" name="variantId" value={variant.id} />
-          <SubmitButton className="rounded bg-black px-2 py-1 text-xs text-white disabled:opacity-50">
+          <SubmitButton pending={isPending} className="rounded bg-black px-2 py-1 text-xs text-white disabled:opacity-50">
             Save
           </SubmitButton>
         </form>
-        {state?.error && <span className="ml-2 text-xs text-red-600">{state.error}</span>}
+        {error && <span className="ml-2 text-xs text-red-600">{error}</span>}
       </td>
     </tr>
   );
@@ -1359,10 +1414,7 @@ export default async function QuoteDetailPage({ params }: { params: { id: string
 import { revalidatePath } from "next/cache";
 import { adminApiFetch } from "@/lib/admin/api-fetch";
 
-export async function priceQuote(
-  _prevState: { error?: string } | null,
-  formData: FormData,
-): Promise<{ error?: string } | null> {
+export async function priceQuote(formData: FormData): Promise<{ error?: string } | null> {
   const quoteId = String(formData.get("quoteId") ?? "");
   const itemIds = formData.getAll("itemId").map(String);
   const lines = itemIds
@@ -1385,10 +1437,7 @@ export async function priceQuote(
   return null;
 }
 
-export async function sendQuoteMessage(
-  _prevState: { error?: string } | null,
-  formData: FormData,
-): Promise<{ error?: string } | null> {
+export async function sendQuoteMessage(formData: FormData): Promise<{ error?: string } | null> {
   const quoteId = String(formData.get("quoteId") ?? "");
   const body = String(formData.get("body") ?? "");
 
@@ -1410,7 +1459,7 @@ export async function sendQuoteMessage(
 ```tsx
 "use client";
 
-import { useFormState } from "react-dom";
+import { useState, useTransition } from "react";
 import type { OsteqQuoteItem, OsteqProductVariant } from "@prisma/client";
 import { priceQuote } from "./actions";
 import { SubmitButton } from "../../SubmitButton";
@@ -1418,10 +1467,20 @@ import { SubmitButton } from "../../SubmitButton";
 type ItemWithVariant = OsteqQuoteItem & { variant: OsteqProductVariant | null };
 
 export function PriceForm({ quoteId, items }: { quoteId: string; items: ItemWithVariant[] }) {
-  const [state, formAction] = useFormState(priceQuote, null);
+  const [error, setError] = useState<string | undefined>();
+  const [isPending, startTransition] = useTransition();
+
+  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    startTransition(async () => {
+      const result = await priceQuote(formData);
+      setError(result?.error);
+    });
+  }
 
   return (
-    <form action={formAction} className="mb-6 flex flex-col gap-2">
+    <form onSubmit={handleSubmit} className="mb-6 flex flex-col gap-2">
       <input type="hidden" name="quoteId" value={quoteId} />
       {items.map((item) => (
         <div key={item.id} className="flex items-center gap-2 text-sm">
@@ -1438,10 +1497,10 @@ export function PriceForm({ quoteId, items }: { quoteId: string; items: ItemWith
           />
         </div>
       ))}
-      <SubmitButton className="w-fit rounded bg-black px-3 py-1 text-sm text-white disabled:opacity-50">
+      <SubmitButton pending={isPending} className="w-fit rounded bg-black px-3 py-1 text-sm text-white disabled:opacity-50">
         Save prices &amp; mark quoted
       </SubmitButton>
-      {state?.error && <span className="text-xs text-red-600">{state.error}</span>}
+      {error && <span className="text-xs text-red-600">{error}</span>}
     </form>
   );
 }
@@ -1452,21 +1511,31 @@ export function PriceForm({ quoteId, items }: { quoteId: string; items: ItemWith
 ```tsx
 "use client";
 
-import { useFormState } from "react-dom";
+import { useState, useTransition } from "react";
 import { sendQuoteMessage } from "./actions";
 import { SubmitButton } from "../../SubmitButton";
 
 export function MessageForm({ quoteId }: { quoteId: string }) {
-  const [state, formAction] = useFormState(sendQuoteMessage, null);
+  const [error, setError] = useState<string | undefined>();
+  const [isPending, startTransition] = useTransition();
+
+  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    startTransition(async () => {
+      const result = await sendQuoteMessage(formData);
+      setError(result?.error);
+    });
+  }
 
   return (
-    <form action={formAction} className="flex items-center gap-2">
+    <form onSubmit={handleSubmit} className="flex items-center gap-2">
       <input type="hidden" name="quoteId" value={quoteId} />
       <input name="body" placeholder="Message" required className="flex-1 rounded border px-2 py-1 text-sm" />
-      <SubmitButton className="rounded bg-black px-3 py-1 text-sm text-white disabled:opacity-50">
+      <SubmitButton pending={isPending} className="rounded bg-black px-3 py-1 text-sm text-white disabled:opacity-50">
         Send
       </SubmitButton>
-      {state?.error && <span className="text-xs text-red-600">{state.error}</span>}
+      {error && <span className="text-xs text-red-600">{error}</span>}
     </form>
   );
 }
@@ -1620,10 +1689,7 @@ export default async function OrderDetailPage({ params }: { params: { id: string
 import { revalidatePath } from "next/cache";
 import { adminApiFetch } from "@/lib/admin/api-fetch";
 
-export async function updateOrderStatus(
-  _prevState: { error?: string } | null,
-  formData: FormData,
-): Promise<{ error?: string } | null> {
+export async function updateOrderStatus(formData: FormData): Promise<{ error?: string } | null> {
   const orderId = String(formData.get("orderId") ?? "");
   const status = String(formData.get("status") ?? "");
   const trackingNumber = String(formData.get("trackingNumber") ?? "");
@@ -1646,7 +1712,7 @@ export async function updateOrderStatus(
 ```tsx
 "use client";
 
-import { useFormState } from "react-dom";
+import { useState, useTransition } from "react";
 import type { OsteqOrder } from "@prisma/client";
 import { updateOrderStatus } from "./actions";
 import { SubmitButton } from "../../SubmitButton";
@@ -1654,10 +1720,20 @@ import { SubmitButton } from "../../SubmitButton";
 const STATUSES = ["PROCESSING", "SHIPPED", "DELIVERED", "CANCELLED"];
 
 export function StatusForm({ order }: { order: OsteqOrder }) {
-  const [state, formAction] = useFormState(updateOrderStatus, null);
+  const [error, setError] = useState<string | undefined>();
+  const [isPending, startTransition] = useTransition();
+
+  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    startTransition(async () => {
+      const result = await updateOrderStatus(formData);
+      setError(result?.error);
+    });
+  }
 
   return (
-    <form action={formAction} className="flex flex-wrap items-center gap-2">
+    <form onSubmit={handleSubmit} className="flex flex-wrap items-center gap-2">
       <input type="hidden" name="orderId" value={order.id} />
       <select name="status" defaultValue={order.status} className="rounded border px-2 py-1 text-sm">
         {STATUSES.map((status) => (
@@ -1672,10 +1748,10 @@ export function StatusForm({ order }: { order: OsteqOrder }) {
         placeholder="Tracking number"
         className="rounded border px-2 py-1 text-sm"
       />
-      <SubmitButton className="rounded bg-black px-3 py-1 text-sm text-white disabled:opacity-50">
+      <SubmitButton pending={isPending} className="rounded bg-black px-3 py-1 text-sm text-white disabled:opacity-50">
         Update
       </SubmitButton>
-      {state?.error && <span className="text-xs text-red-600">{state.error}</span>}
+      {error && <span className="text-xs text-red-600">{error}</span>}
     </form>
   );
 }
