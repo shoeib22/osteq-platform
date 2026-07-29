@@ -6,12 +6,13 @@
 
 **Architecture:** New `app/admin/*` routes in this repo. Server Components read Prisma directly; mutations go through the existing, already-reviewed `/api/osteq/*` routes via a shared `fetch`-based helper that forwards the staff session cookie — reusing every race-condition guard already built rather than duplicating them. Three small backend gaps (category edit, variant edit, staff-facing order list) are added first since later tasks depend on them.
 
-**Tech Stack:** Next.js 14 App Router (Server Components + Server Actions), Prisma, React 18.3 (`useState` + `useTransition` from `react` for form state/pending — `useFormState`/`useFormStatus` from `react-dom` and `useActionState` from `react` are NOT available: verified empirically that the installed `react-dom@18.3.1` does not export the first two, and `useActionState` is React-19-only), Tailwind (plain utility classes only — no custom theme; visual polish is explicitly deferred).
+**Tech Stack:** Next.js 14 App Router (Server Components + Server Actions), Prisma, React 18.3 (plain `useState<boolean>` for pending tracking, set `true`/`false` around a manual `await` — NOT `useTransition`: verified by reading the installed `react-dom` source that `startTransition()` is synchronous on React 18.3.1 and never awaits an async callback, so it cannot reliably track one; `useFormState`/`useFormStatus` from `react-dom` and `useActionState` from `react` are also NOT available: verified empirically that the installed `react-dom@18.3.1` does not export the first two, and `useActionState` is React-19-only), Tailwind (plain utility classes only — no custom theme; visual polish is explicitly deferred).
 
 ## Global Constraints
 
 - No test runner exists in this repo — verification is manual (`npx tsc --noEmit`, `npm run build`, and a browser walkthrough in the final task).
-- **Do not use `useFormState`/`useFormStatus` (from `react-dom`) or `useActionState` (from `react`) anywhere in this plan.** A prior task in this same plan verified directly (`node -e "require('react-dom').useFormState"` → `undefined`) that the installed `react-dom@18.3.1` does not export these — `tsc --noEmit` will falsely report no error, because Next.js's ambient `react-dom/experimental` type augmentation lies about what's exported at runtime, but the app throws `TypeError` at render. Every form instead: (1) is a `"use client"` component owning its own `const [error, setError] = useState<string | undefined>()` and `const [isPending, startTransition] = useTransition()`; (2) has a plain `onSubmit={(e) => { e.preventDefault(); const formData = new FormData(e.currentTarget); startTransition(async () => { const result = await someAction(formData); setError(result?.error); }); }}` handler; (3) calls the imported Server Action directly as a plain async function (Server Actions are callable async functions from client code regardless of React version — only the special hooks are unavailable); (4) renders `<SubmitButton pending={isPending}>Label</SubmitButton>` (Task 3's `SubmitButton` takes `pending` as an explicit prop, not via `useFormStatus()` context) and `{error && <span className="text-xs text-red-600">{error}</span>}`. Every Server Action's signature drops the unused `_prevState` parameter `useFormState` used to require: `async function someAction(formData: FormData): Promise<{ error?: string } | null>`.
+- **Do not use `useFormState`/`useFormStatus` (from `react-dom`) or `useActionState` (from `react`) anywhere in this plan.** A prior task in this same plan verified directly (`node -e "require('react-dom').useFormState"` → `undefined`) that the installed `react-dom@18.3.1` does not export these — `tsc --noEmit` will falsely report no error, because Next.js's ambient `react-dom/experimental` type augmentation lies about what's exported at runtime, but the app throws `TypeError` at render.
+- **Do not use `useTransition` for pending tracking either.** It was tried first and looked correct (`useState`/`useTransition` both really exist on `react@18.3.1`), but re-reading the installed `react-dom/cjs/react-dom.development.js` source showed `startTransition(callback)` calls `callback()` synchronously and never awaits or inspects its return value — automatic pending-tracking of an `async` callback is a React 19 "Actions" feature, not present here. Using it anyway made `isPending` flip back to `false` almost immediately after click, well before the real Server Action's network/DB round-trip finished, making the disabled-button state unreliable and allowing duplicate submits on a fast double-click. Every form instead: (1) is a `"use client"` component owning its own `const [error, setError] = useState<string | undefined>()` and `const [isPending, setIsPending] = useState(false)`; (2) has a plain `async function handleSubmit(event) { event.preventDefault(); const formData = new FormData(event.currentTarget); setIsPending(true); try { const result = await someAction(formData); setError(result?.error); } finally { setIsPending(false); } }` handler wired to `onSubmit={handleSubmit}`; (3) calls the imported Server Action directly as a plain async function (Server Actions are callable async functions from client code regardless of React version — only the special hooks are unavailable); (4) renders `<SubmitButton pending={isPending}>Label</SubmitButton>` (Task 3's `SubmitButton` takes `pending` as an explicit prop, not via `useFormStatus()` context) and `{error && <span className="text-xs text-red-600">{error}</span>}`. Every Server Action's signature drops the unused `_prevState` parameter `useFormState` used to require: `async function someAction(formData: FormData): Promise<{ error?: string } | null>`.
 - Server Actions never talk to Prisma directly for mutations — every mutation goes through `adminApiFetch` (Task 3) calling the existing `/api/osteq/*` route, so race-condition guards already built and reviewed in the backend are never duplicated.
 - Match existing code style: no comments explaining *what* code does, only non-obvious *why*.
 - Money is always `Int`/`*InPaise` — the admin UI shows raw paise values (no currency formatting) matching the rest of this repo's current state; formatting is part of the deferred visual-polish pass, not this plan.
@@ -233,7 +234,7 @@ git commit -m "Add staff bypass to order list and detail routes"
 
 **Interfaces:**
 - Consumes: `requireStaffAccess` (`@/lib/auth`), `createClient` (`@/lib/supabase/server`).
-- Produces: `export async function adminApiFetch<T>(path: string, options?: { method?: string; body?: unknown }): Promise<{ data?: T; error?: string }>` — consumed by every `actions.ts` in Tasks 4-11. `export function SubmitButton({ pending: boolean, children, className? }): JSX.Element` — a plain presentational client component (its `pending` state is passed in as a prop by the parent form, which owns it via `useTransition` — see Global Constraints), consumed by every form in Tasks 4-11 in place of a hand-rolled disabled/pending button. `logoutAction()`.
+- Produces: `export async function adminApiFetch<T>(path: string, options?: { method?: string; body?: unknown }): Promise<{ data?: T; error?: string }>` — consumed by every `actions.ts` in Tasks 4-11. `export function SubmitButton({ pending: boolean, children, className? }): JSX.Element` — a plain presentational client component (its `pending` state is passed in as a prop by the parent form, which owns it via a plain `useState<boolean>` — see Global Constraints), consumed by every form in Tasks 4-11 in place of a hand-rolled disabled/pending button. `logoutAction()`.
 
 - [ ] **Step 1: Write the admin API fetch helper**
 
@@ -301,9 +302,9 @@ export function SubmitButton({
 ```
 
 This is a plain presentational component — the parent form component owns its own pending
-state via `useTransition` (see the Global Constraints section) and passes it down as a prop,
-rather than `SubmitButton` deriving it via `useFormStatus()` context (which isn't available —
-see Global Constraints).
+state via a plain `useState<boolean>` (see the Global Constraints section) and passes it down
+as a prop, rather than `SubmitButton` deriving it via `useFormStatus()` context (which isn't
+available — see Global Constraints).
 
 - [ ] **Step 3: Write the login Server Action**
 
@@ -332,20 +333,23 @@ export async function loginAction(formData: FormData): Promise<{ error?: string 
 ```tsx
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { loginAction } from "./actions";
 
 export default function AdminLoginPage() {
   const [error, setError] = useState<string | undefined>();
-  const [isPending, startTransition] = useTransition();
+  const [isPending, setIsPending] = useState(false);
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
-    startTransition(async () => {
+    setIsPending(true);
+    try {
       const result = await loginAction(formData);
       setError(result?.error);
-    });
+    } finally {
+      setIsPending(false);
+    }
   }
 
   return (
@@ -555,22 +559,25 @@ hidden field in each form's own `FormData`, so one `handleSubmit` correctly serv
 ```tsx
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { reviewTradeApplication } from "./actions";
 import { SubmitButton } from "../SubmitButton";
 
 export function TradeApplicationActions({ applicationId }: { applicationId: string }) {
   const [error, setError] = useState<string | undefined>();
-  const [isPending, startTransition] = useTransition();
+  const [isPending, setIsPending] = useState(false);
   const [showReject, setShowReject] = useState(false);
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
-    startTransition(async () => {
+    setIsPending(true);
+    try {
       const result = await reviewTradeApplication(formData);
       setError(result?.error);
-    });
+    } finally {
+      setIsPending(false);
+    }
   }
 
   return (
@@ -696,7 +703,7 @@ export async function saveCategory(formData: FormData): Promise<{ error?: string
 ```tsx
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import type { OsteqCategory } from "@prisma/client";
 import { saveCategory } from "./actions";
 import { SubmitButton } from "../SubmitButton";
@@ -709,15 +716,18 @@ export function CategoryForm({
   category?: OsteqCategory;
 }) {
   const [error, setError] = useState<string | undefined>();
-  const [isPending, startTransition] = useTransition();
+  const [isPending, setIsPending] = useState(false);
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
-    startTransition(async () => {
+    setIsPending(true);
+    try {
       const result = await saveCategory(formData);
       setError(result?.error);
-    });
+    } finally {
+      setIsPending(false);
+    }
   }
 
   return (
@@ -847,21 +857,24 @@ export async function createProduct(formData: FormData): Promise<{ error?: strin
 ```tsx
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { createProduct } from "./actions";
 import { SubmitButton } from "../../SubmitButton";
 
 export function ProductForm({ categoryId }: { categoryId: string }) {
   const [error, setError] = useState<string | undefined>();
-  const [isPending, startTransition] = useTransition();
+  const [isPending, setIsPending] = useState(false);
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
-    startTransition(async () => {
+    setIsPending(true);
+    try {
       const result = await createProduct(formData);
       setError(result?.error);
-    });
+    } finally {
+      setIsPending(false);
+    }
   }
 
   return (
@@ -1036,22 +1049,25 @@ export async function updateVariant(formData: FormData): Promise<{ error?: strin
 ```tsx
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import type { OsteqProduct } from "@prisma/client";
 import { updateProduct } from "./actions";
 import { SubmitButton } from "../../../SubmitButton";
 
 export function ProductEditForm({ product }: { product: OsteqProduct }) {
   const [error, setError] = useState<string | undefined>();
-  const [isPending, startTransition] = useTransition();
+  const [isPending, setIsPending] = useState(false);
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
-    startTransition(async () => {
+    setIsPending(true);
+    try {
       const result = await updateProduct(formData);
       setError(result?.error);
-    });
+    } finally {
+      setIsPending(false);
+    }
   }
 
   return (
@@ -1092,21 +1108,24 @@ export function ProductEditForm({ product }: { product: OsteqProduct }) {
 ```tsx
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { createVariant } from "./actions";
 import { SubmitButton } from "../../../SubmitButton";
 
 export function VariantForm({ productId }: { productId: string }) {
   const [error, setError] = useState<string | undefined>();
-  const [isPending, startTransition] = useTransition();
+  const [isPending, setIsPending] = useState(false);
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
-    startTransition(async () => {
+    setIsPending(true);
+    try {
       const result = await createVariant(formData);
       setError(result?.error);
-    });
+    } finally {
+      setIsPending(false);
+    }
   }
 
   return (
@@ -1164,7 +1183,7 @@ this plan's hook change.
 ```tsx
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import type { OsteqProductVariant } from "@prisma/client";
 import { updateVariant } from "./actions";
 import { SubmitButton } from "../../../SubmitButton";
@@ -1177,16 +1196,19 @@ export function VariantEditForm({
   variant: OsteqProductVariant;
 }) {
   const [error, setError] = useState<string | undefined>();
-  const [isPending, startTransition] = useTransition();
+  const [isPending, setIsPending] = useState(false);
   const formId = `variant-form-${variant.id}`;
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
-    startTransition(async () => {
+    setIsPending(true);
+    try {
       const result = await updateVariant(formData);
       setError(result?.error);
-    });
+    } finally {
+      setIsPending(false);
+    }
   }
 
   return (
@@ -1459,7 +1481,7 @@ export async function sendQuoteMessage(formData: FormData): Promise<{ error?: st
 ```tsx
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import type { OsteqQuoteItem, OsteqProductVariant } from "@prisma/client";
 import { priceQuote } from "./actions";
 import { SubmitButton } from "../../SubmitButton";
@@ -1468,15 +1490,18 @@ type ItemWithVariant = OsteqQuoteItem & { variant: OsteqProductVariant | null };
 
 export function PriceForm({ quoteId, items }: { quoteId: string; items: ItemWithVariant[] }) {
   const [error, setError] = useState<string | undefined>();
-  const [isPending, startTransition] = useTransition();
+  const [isPending, setIsPending] = useState(false);
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
-    startTransition(async () => {
+    setIsPending(true);
+    try {
       const result = await priceQuote(formData);
       setError(result?.error);
-    });
+    } finally {
+      setIsPending(false);
+    }
   }
 
   return (
@@ -1511,21 +1536,24 @@ export function PriceForm({ quoteId, items }: { quoteId: string; items: ItemWith
 ```tsx
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { sendQuoteMessage } from "./actions";
 import { SubmitButton } from "../../SubmitButton";
 
 export function MessageForm({ quoteId }: { quoteId: string }) {
   const [error, setError] = useState<string | undefined>();
-  const [isPending, startTransition] = useTransition();
+  const [isPending, setIsPending] = useState(false);
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
-    startTransition(async () => {
+    setIsPending(true);
+    try {
       const result = await sendQuoteMessage(formData);
       setError(result?.error);
-    });
+    } finally {
+      setIsPending(false);
+    }
   }
 
   return (
@@ -1712,7 +1740,7 @@ export async function updateOrderStatus(formData: FormData): Promise<{ error?: s
 ```tsx
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import type { OsteqOrder } from "@prisma/client";
 import { updateOrderStatus } from "./actions";
 import { SubmitButton } from "../../SubmitButton";
@@ -1721,15 +1749,18 @@ const STATUSES = ["PROCESSING", "SHIPPED", "DELIVERED", "CANCELLED"];
 
 export function StatusForm({ order }: { order: OsteqOrder }) {
   const [error, setError] = useState<string | undefined>();
-  const [isPending, startTransition] = useTransition();
+  const [isPending, setIsPending] = useState(false);
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
-    startTransition(async () => {
+    setIsPending(true);
+    try {
       const result = await updateOrderStatus(formData);
       setError(result?.error);
-    });
+    } finally {
+      setIsPending(false);
+    }
   }
 
   return (
