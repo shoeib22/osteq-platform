@@ -32,6 +32,9 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
 
   const body = await request.json();
   const lines: PricedLine[] = Array.isArray(body.lines) ? body.lines : [];
+  if (lines.length === 0) {
+    return NextResponse.json({ error: "At least one line item needs a price." }, { status: 400 });
+  }
   const knownItemIds = new Set(quote.items.map((i) => i.id));
   for (const line of lines) {
     if (!knownItemIds.has(line.itemId) || !Number.isFinite(line.quotedUnitPriceInPaise)) {
