@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import { StatusForm } from "./StatusForm";
 
 export default async function OrderDetailPage({ params }: { params: { id: string } }) {
@@ -13,15 +14,20 @@ export default async function OrderDetailPage({ params }: { params: { id: string
 
   return (
     <div>
-      <h1 className="mb-4 text-xl font-semibold">Order for {order.customer.email}</h1>
+      <div className="mb-4 flex items-center justify-between">
+        <h1 className="text-xl font-semibold">Order for {order.customer.email}</h1>
+        <Link href={`/admin/orders/${order.id}/invoice`} className="text-sm underline">
+          View / print invoice
+        </Link>
+      </div>
       <p className="mb-2 text-sm">Shipping to: {order.shippingAddress}</p>
-      <p className="mb-4 text-sm">Total: {order.totalInPaise} paise</p>
+      <p className="mb-4 text-sm">Total: ₹{Number(order.totalInRupees).toFixed(2)}</p>
 
       <h2 className="mb-2 font-medium">Items</h2>
       <ul className="mb-6 divide-y text-sm">
         {order.items.map((item) => (
           <li key={item.id} className="py-2">
-            {item.variant.sku} — qty {item.quantity} — {item.unitPriceInPaise} paise each
+            {item.variant.sku} — qty {item.quantity} — ₹{Number(item.unitPriceInRupees).toFixed(2)} each
           </li>
         ))}
       </ul>

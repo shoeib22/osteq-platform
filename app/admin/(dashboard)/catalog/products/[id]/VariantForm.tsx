@@ -35,16 +35,18 @@ export function VariantForm({ productId }: { productId: string }) {
         className="rounded border px-2 py-1 text-sm"
       />
       <input
-        name="retailPriceInPaise"
+        name="retailPriceInRupees"
         type="number"
-        placeholder="Retail (paise)"
+        step="0.01"
+        placeholder="Retail (₹)"
         required
         className="w-32 rounded border px-2 py-1 text-sm"
       />
       <input
-        name="tradePriceInPaise"
+        name="tradePriceInRupees"
         type="number"
-        placeholder="Trade (paise)"
+        step="0.01"
+        placeholder="Trade (₹)"
         required
         className="w-32 rounded border px-2 py-1 text-sm"
       />

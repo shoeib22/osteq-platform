@@ -34,18 +34,20 @@ export function VariantEditForm({
       <td className="p-2">{JSON.stringify(variant.attributes)}</td>
       <td className="p-2">
         <input
-          name="retailPriceInPaise"
+          name="retailPriceInRupees"
           type="number"
-          defaultValue={variant.retailPriceInPaise}
+          step="0.01"
+          defaultValue={Number(variant.retailPriceInRupees)}
           form={formId}
           className="w-24 rounded border px-2 py-1 text-sm"
         />
       </td>
       <td className="p-2">
         <input
-          name="tradePriceInPaise"
+          name="tradePriceInRupees"
           type="number"
-          defaultValue={variant.tradePriceInPaise}
+          step="0.01"
+          defaultValue={Number(variant.tradePriceInRupees)}
           form={formId}
           className="w-24 rounded border px-2 py-1 text-sm"
         />

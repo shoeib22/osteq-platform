@@ -31,8 +31,8 @@ export default async function QuoteDetailPage({ params }: { params: { id: string
           {quote.items.map((item) => (
             <li key={item.id} className="py-2">
               {item.variant?.sku ?? item.description} — qty {item.quantity} —{" "}
-              {item.quotedUnitPriceInPaise != null
-                ? `${item.quotedUnitPriceInPaise} paise`
+              {item.quotedUnitPriceInRupees != null
+                ? `₹${Number(item.quotedUnitPriceInRupees).toFixed(2)}`
                 : "not priced"}
             </li>
           ))}

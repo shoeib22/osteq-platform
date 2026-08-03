@@ -13,10 +13,10 @@ export async function priceQuote(formData: FormData): Promise<{ error?: string }
       if (priceStr === "") {
         return null;
       }
-      const quotedUnitPriceInPaise = Number(priceStr);
-      return Number.isFinite(quotedUnitPriceInPaise) ? { itemId, quotedUnitPriceInPaise } : null;
+      const quotedUnitPriceInRupees = Number(priceStr);
+      return Number.isFinite(quotedUnitPriceInRupees) ? { itemId, quotedUnitPriceInRupees } : null;
     })
-    .filter((line): line is { itemId: string; quotedUnitPriceInPaise: number } => line !== null);
+    .filter((line): line is { itemId: string; quotedUnitPriceInRupees: number } => line !== null);
 
   const { error } = await adminApiFetch(`/api/osteq/quotes/${quoteId}/price`, {
     method: "PATCH",

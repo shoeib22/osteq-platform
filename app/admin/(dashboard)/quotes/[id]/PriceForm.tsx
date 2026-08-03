@@ -35,8 +35,9 @@ export function PriceForm({ quoteId, items }: { quoteId: string; items: ItemWith
           <input
             name={`price-${item.id}`}
             type="number"
-            placeholder="Unit price (paise)"
-            defaultValue={item.quotedUnitPriceInPaise ?? undefined}
+            step="0.01"
+            placeholder="Unit price (₹)"
+            defaultValue={item.quotedUnitPriceInRupees != null ? Number(item.quotedUnitPriceInRupees) : undefined}
             className="w-40 rounded border px-2 py-1"
           />
         </div>

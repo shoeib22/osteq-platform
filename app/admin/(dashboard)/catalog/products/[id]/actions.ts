@@ -30,8 +30,8 @@ export async function createVariant(formData: FormData): Promise<{ error?: strin
   const sku = String(formData.get("sku") ?? "");
   const attributeName = String(formData.get("attributeName") ?? "").trim();
   const attributeValue = String(formData.get("attributeValue") ?? "").trim();
-  const retailPriceInPaise = Number(formData.get("retailPriceInPaise"));
-  const tradePriceInPaise = Number(formData.get("tradePriceInPaise"));
+  const retailPriceInRupees = Number(formData.get("retailPriceInRupees"));
+  const tradePriceInRupees = Number(formData.get("tradePriceInRupees"));
   const stockQuantity = Number(formData.get("stockQuantity"));
 
   const { error } = await adminApiFetch(`/api/osteq/products/${productId}/variants`, {
@@ -39,8 +39,8 @@ export async function createVariant(formData: FormData): Promise<{ error?: strin
     body: {
       sku,
       attributes: attributeName && attributeValue ? { [attributeName]: attributeValue } : {},
-      retailPriceInPaise,
-      tradePriceInPaise,
+      retailPriceInRupees,
+      tradePriceInRupees,
       stockQuantity,
     },
   });
@@ -55,14 +55,14 @@ export async function createVariant(formData: FormData): Promise<{ error?: strin
 export async function updateVariant(formData: FormData): Promise<{ error?: string } | null> {
   const productId = String(formData.get("productId") ?? "");
   const variantId = String(formData.get("variantId") ?? "");
-  const retailPriceInPaise = Number(formData.get("retailPriceInPaise"));
-  const tradePriceInPaise = Number(formData.get("tradePriceInPaise"));
+  const retailPriceInRupees = Number(formData.get("retailPriceInRupees"));
+  const tradePriceInRupees = Number(formData.get("tradePriceInRupees"));
   const stockQuantity = Number(formData.get("stockQuantity"));
   const isActive = formData.get("isActive") === "on";
 
   const { error } = await adminApiFetch(`/api/osteq/products/${productId}/variants/${variantId}`, {
     method: "PATCH",
-    body: { retailPriceInPaise, tradePriceInPaise, stockQuantity, isActive },
+    body: { retailPriceInRupees, tradePriceInRupees, stockQuantity, isActive },
   });
   if (error) {
     return { error };

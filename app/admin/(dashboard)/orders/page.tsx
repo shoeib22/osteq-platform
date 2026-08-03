@@ -20,7 +20,7 @@ export default async function OrdersPage({
         <thead>
           <tr className="border-b text-left">
             <th className="p-2">Customer</th>
-            <th className="p-2">Total (paise)</th>
+            <th className="p-2">Total (₹)</th>
             <th className="p-2">Status</th>
             <th className="p-2">Created</th>
             <th className="p-2"></th>
@@ -30,7 +30,7 @@ export default async function OrdersPage({
           {orders.map((order) => (
             <tr key={order.id} className="border-b">
               <td className="p-2">{order.customer.email}</td>
-              <td className="p-2">{order.totalInPaise}</td>
+              <td className="p-2">₹{Number(order.totalInRupees).toFixed(2)}</td>
               <td className="p-2">{order.status}</td>
               <td className="p-2">{order.createdAt.toLocaleDateString()}</td>
               <td className="p-2">
