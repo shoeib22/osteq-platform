@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireOsteqCustomerAccess } from "@/lib/osteq/auth";
 import { requireStaffAccess } from "@/lib/auth";
+import { serializeDecimals } from "@/lib/osteq/serialize";
 
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   let customerId: string | null = null;
@@ -17,11 +18,14 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 
   const order = await prisma.osteqOrder.findUnique({
     where: { id: params.id },
-    include: { items: true },
+    include: {
+      items: { include: { variant: { include: { product: true } } } },
+      customer: true,
+    },
   });
   if (!order || (customerId && order.customerId !== customerId)) {
     return NextResponse.json({ error: "Order not found." }, { status: 404 });
   }
 
-  return NextResponse.json({ order });
+  return NextResponse.json(serializeDecimals({ order }));
 }

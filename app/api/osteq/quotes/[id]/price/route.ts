@@ -5,7 +5,7 @@ import { notifyQuoteReady } from "@/lib/osteq/notifications";
 
 interface PricedLine {
   itemId: string;
-  quotedUnitPriceInPaise: number;
+  quotedUnitPriceInRupees: number;
 }
 
 // SUBMITTED and REVISION_REQUESTED both implicitly pass through UNDER_REVIEW on their way
@@ -37,8 +37,8 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   }
   const knownItemIds = new Set(quote.items.map((i) => i.id));
   for (const line of lines) {
-    if (!knownItemIds.has(line.itemId) || !Number.isFinite(line.quotedUnitPriceInPaise)) {
-      return NextResponse.json({ error: "Every line needs a valid itemId and quotedUnitPriceInPaise." }, { status: 400 });
+    if (!knownItemIds.has(line.itemId) || !Number.isFinite(line.quotedUnitPriceInRupees)) {
+      return NextResponse.json({ error: "Every line needs a valid itemId and quotedUnitPriceInRupees." }, { status: 400 });
     }
   }
 
@@ -58,7 +58,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       for (const line of lines) {
         await tx.osteqQuoteItem.update({
           where: { id: line.itemId },
-          data: { quotedUnitPriceInPaise: line.quotedUnitPriceInPaise },
+          data: { quotedUnitPriceInRupees: line.quotedUnitPriceInRupees },
         });
       }
     });

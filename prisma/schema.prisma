@@ -57,8 +57,32 @@ model OsteqCustomerProfile {
   orders            OsteqOrder[]
   quotes            OsteqQuote[]
   quoteMessages     OsteqQuoteMessage[]
+  addresses         OsteqAddress[]
 
   @@map("osteq_customer_profiles")
+}
+
+/// A customer's saved address book — reusable across trade applications and (later)
+/// checkout, rather than the free-text one-off `OsteqOrder.shippingAddress` string.
+model OsteqAddress {
+  id         String   @id @default(uuid())
+  customerId String
+  label      String
+  line1      String
+  line2      String?
+  city       String
+  state      String
+  postalCode String
+  country    String   @default("India")
+  phone      String?
+  isDefault  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  customer          OsteqCustomerProfile     @relation(fields: [customerId], references: [id])
+  tradeApplications OsteqTradeApplication[]
+
+  @@index([customerId])
+  @@map("osteq_addresses")
 }
 
 enum OsteqTradeApplicationStatus {
@@ -74,6 +98,7 @@ model OsteqTradeApplication {
   businessType     String
   taxId            String?
   phone            String
+  addressId        String?
   status           OsteqTradeApplicationStatus  @default(PENDING)
   reviewedByProfileId String?
   reviewedAt       DateTime?
@@ -82,6 +107,7 @@ model OsteqTradeApplication {
 
   customer     OsteqCustomerProfile @relation(fields: [customerId], references: [id])
   reviewedBy   Staff?               @relation(fields: [reviewedByProfileId], references: [id])
+  address      OsteqAddress?        @relation(fields: [addressId], references: [id], onDelete: SetNull)
 
   @@index([customerId])
   @@index([status])
@@ -124,8 +150,8 @@ model OsteqProductVariant {
   productId          String
   sku                String   @unique
   attributes         Json
-  retailPriceInPaise Int
-  tradePriceInPaise  Int
+  retailPriceInRupees Decimal @db.Decimal(10, 2)
+  tradePriceInRupees  Decimal @db.Decimal(10, 2)
   stockQuantity      Int      @default(0)
   isActive           Boolean  @default(true)
 
@@ -174,7 +200,7 @@ model OsteqOrder {
   status           OsteqOrderStatus @default(PROCESSING)
   shippingAddress  String
   trackingNumber   String?
-  totalInPaise     Int
+  totalInRupees    Decimal          @db.Decimal(10, 2)
   createdAt        DateTime         @default(now())
 
   customer OsteqCustomerProfile @relation(fields: [customerId], references: [id])
@@ -190,7 +216,7 @@ model OsteqOrderItem {
   orderId         String
   variantId       String
   quantity        Int
-  unitPriceInPaise Int
+  unitPriceInRupees Decimal @db.Decimal(10, 2)
 
   order   OsteqOrder          @relation(fields: [orderId], references: [id])
   variant OsteqProductVariant @relation(fields: [variantId], references: [id])
@@ -232,7 +258,7 @@ model OsteqQuoteItem {
   productVariantId      String?
   description           String?
   quantity              Int
-  quotedUnitPriceInPaise Int?
+  quotedUnitPriceInRupees Decimal? @db.Decimal(10, 2)
   notes                 String?
 
   quote   OsteqQuote           @relation(fields: [quoteId], references: [id])

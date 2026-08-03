@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireStaffAccess } from "@/lib/auth";
+import { serializeDecimals } from "@/lib/osteq/serialize";
 
 export async function PATCH(
   request: NextRequest,
@@ -20,12 +21,12 @@ export async function PATCH(
   const body = await request.json();
   const sku = typeof body.sku === "string" && body.sku.trim() ? body.sku.trim() : existing.sku;
   const attributes = body.attributes !== undefined ? body.attributes : existing.attributes;
-  const retailPriceInPaise = Number.isFinite(Number(body.retailPriceInPaise))
-    ? Number(body.retailPriceInPaise)
-    : existing.retailPriceInPaise;
-  const tradePriceInPaise = Number.isFinite(Number(body.tradePriceInPaise))
-    ? Number(body.tradePriceInPaise)
-    : existing.tradePriceInPaise;
+  const retailPriceInRupees = Number.isFinite(Number(body.retailPriceInRupees))
+    ? Number(body.retailPriceInRupees)
+    : existing.retailPriceInRupees;
+  const tradePriceInRupees = Number.isFinite(Number(body.tradePriceInRupees))
+    ? Number(body.tradePriceInRupees)
+    : existing.tradePriceInRupees;
   const stockQuantity = Number.isFinite(Number(body.stockQuantity))
     ? Number(body.stockQuantity)
     : existing.stockQuantity;
@@ -33,7 +34,7 @@ export async function PATCH(
 
   const variant = await prisma.osteqProductVariant.update({
     where: { id: params.variantId },
-    data: { sku, attributes, retailPriceInPaise, tradePriceInPaise, stockQuantity, isActive },
+    data: { sku, attributes, retailPriceInRupees, tradePriceInRupees, stockQuantity, isActive },
   });
-  return NextResponse.json({ variant });
+  return NextResponse.json(serializeDecimals({ variant }));
 }

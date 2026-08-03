@@ -24,6 +24,39 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  // Address is optional and can come two ways: reuse an existing saved address by id, or
+  // create-and-save a new one inline in the same request — both end up as this customer's
+  // own OsteqAddress row so it's reusable later (checkout, a future application), never a
+  // one-off string like OsteqOrder.shippingAddress.
+  let addressId: string | null = null;
+  if (typeof body.addressId === "string" && body.addressId) {
+    const existingAddress = await prisma.osteqAddress.findUnique({ where: { id: body.addressId } });
+    if (!existingAddress || existingAddress.customerId !== customerId) {
+      return NextResponse.json({ error: "Address not found." }, { status: 404 });
+    }
+    addressId = existingAddress.id;
+  } else if (body.address && typeof body.address === "object") {
+    const a = body.address as Record<string, unknown>;
+    const label = typeof a.label === "string" ? a.label.trim() : "";
+    const line1 = typeof a.line1 === "string" ? a.line1.trim() : "";
+    const city = typeof a.city === "string" ? a.city.trim() : "";
+    const state = typeof a.state === "string" ? a.state.trim() : "";
+    const postalCode = typeof a.postalCode === "string" ? a.postalCode.trim() : "";
+    if (!label || !line1 || !city || !state || !postalCode) {
+      return NextResponse.json(
+        { error: "address.label, line1, city, state, and postalCode are required when adding a new address." },
+        { status: 400 },
+      );
+    }
+    const line2 = typeof a.line2 === "string" && a.line2.trim() ? a.line2.trim() : null;
+    const country = typeof a.country === "string" && a.country.trim() ? a.country.trim() : "India";
+    const addressPhone = typeof a.phone === "string" && a.phone.trim() ? a.phone.trim() : null;
+    const created = await prisma.osteqAddress.create({
+      data: { customerId, label, line1, line2, city, state, postalCode, country, phone: addressPhone },
+    });
+    addressId = created.id;
+  }
+
   const existingPending = await prisma.osteqTradeApplication.findFirst({
     where: { customerId, status: "PENDING" },
   });
@@ -35,7 +68,7 @@ export async function POST(request: NextRequest) {
   }
 
   const application = await prisma.osteqTradeApplication.create({
-    data: { customerId, businessName, businessType, phone, taxId },
+    data: { customerId, businessName, businessType, phone, taxId, addressId },
   });
 
   return NextResponse.json({ application });

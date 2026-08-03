@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireOsteqCustomerAccess } from "@/lib/osteq/auth";
 import { resolveVariantPrice } from "@/lib/osteq/pricing";
 import { stubPaymentProvider } from "@/lib/osteq/payment";
+import { serializeDecimals } from "@/lib/osteq/serialize";
 
 export async function POST(request: NextRequest) {
   let customerId: string;
@@ -38,8 +39,8 @@ export async function POST(request: NextRequest) {
 
   try {
     const order = await prisma.$transaction(async (tx) => {
-      let totalInPaise = 0;
-      const orderItemsData: { variantId: string; quantity: number; unitPriceInPaise: number }[] = [];
+      let totalInRupees = 0;
+      const orderItemsData: { variantId: string; quantity: number; unitPriceInRupees: number }[] = [];
 
       for (const item of cart.items) {
         // The WHERE clause's stockQuantity >= quantity is the race guard — Postgres evaluates
@@ -56,12 +57,16 @@ export async function POST(request: NextRequest) {
         }
 
         const updated = await tx.osteqProductVariant.findUniqueOrThrow({ where: { id: item.variantId } });
-        const { priceInPaise } = resolveVariantPrice(updated, profile?.accountStatus ?? null);
-        totalInPaise += priceInPaise * item.quantity;
-        orderItemsData.push({ variantId: item.variantId, quantity: item.quantity, unitPriceInPaise: priceInPaise });
+        const { priceInRupees } = resolveVariantPrice(updated, profile?.accountStatus ?? null);
+        totalInRupees += priceInRupees * item.quantity;
+        orderItemsData.push({ variantId: item.variantId, quantity: item.quantity, unitPriceInRupees: priceInRupees });
       }
+      // Round once after summing, rather than after each line, so per-line rounding error
+      // can't compound across many items — floats are exact enough for a single INR total
+      // at this magnitude, this just pins it to the DB column's 2-decimal-place contract.
+      totalInRupees = Math.round(totalInRupees * 100) / 100;
 
-      const payment = await stubPaymentProvider.charge(totalInPaise);
+      const payment = await stubPaymentProvider.charge(totalInRupees);
       if (!payment.success) {
         throw new Error("Payment failed.");
       }
@@ -70,7 +75,7 @@ export async function POST(request: NextRequest) {
         data: {
           customerId,
           shippingAddress,
-          totalInPaise,
+          totalInRupees,
           items: { create: orderItemsData },
         },
         include: { items: true },
@@ -81,7 +86,7 @@ export async function POST(request: NextRequest) {
       return created;
     });
 
-    return NextResponse.json({ order });
+    return NextResponse.json(serializeDecimals({ order }));
   } catch (err) {
     return NextResponse.json({ error: err instanceof Error ? err.message : "Checkout failed." }, { status: 409 });
   }

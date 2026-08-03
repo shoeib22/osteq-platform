@@ -9,11 +9,11 @@ export interface PaymentResult {
  * means implementing PaymentProvider, not touching the order/stock transaction below.
  */
 export interface PaymentProvider {
-  charge(amountInPaise: number): Promise<PaymentResult>;
+  charge(amountInRupees: number): Promise<PaymentResult>;
 }
 
 export const stubPaymentProvider: PaymentProvider = {
-  async charge(amountInPaise: number): Promise<PaymentResult> {
-    return { success: true, reference: `stub-${Date.now()}-${amountInPaise}` };
+  async charge(amountInRupees: number): Promise<PaymentResult> {
+    return { success: true, reference: `stub-${Date.now()}-${amountInRupees}` };
   },
 };

@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireOsteqCustomerAccess } from "@/lib/osteq/auth";
 import { requireStaffAccess } from "@/lib/auth";
+import { serializeDecimals } from "@/lib/osteq/serialize";
 
 interface IncomingQuoteItem {
   productVariantId?: string;
@@ -50,7 +51,7 @@ export async function POST(request: NextRequest) {
     include: { items: true },
   });
 
-  return NextResponse.json({ quote });
+  return NextResponse.json(serializeDecimals({ quote }));
 }
 
 export async function GET(request: NextRequest) {
@@ -79,5 +80,5 @@ export async function GET(request: NextRequest) {
     orderBy: { createdAt: "asc" },
   });
 
-  return NextResponse.json({ quotes });
+  return NextResponse.json(serializeDecimals({ quotes }));
 }

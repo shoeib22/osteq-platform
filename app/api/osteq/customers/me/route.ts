@@ -10,12 +10,18 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const profile = await prisma.osteqCustomerProfile.findUnique({ where: { id: customerId } });
+  const profile = await prisma.osteqCustomerProfile.findUnique({
+    where: { id: customerId },
+    include: { tradeApplications: { orderBy: { createdAt: "desc" }, take: 1 } },
+  });
   if (!profile) {
     return NextResponse.json({ error: "Profile not created yet." }, { status: 404 });
   }
 
-  return NextResponse.json({ profile });
+  const { tradeApplications, ...profileFields } = profile;
+  return NextResponse.json({
+    profile: { ...profileFields, latestTradeApplicationStatus: tradeApplications[0]?.status ?? null },
+  });
 }
 
 export async function POST(request: NextRequest) {

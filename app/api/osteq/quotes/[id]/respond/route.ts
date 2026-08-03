@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireOsteqCustomerAccess } from "@/lib/osteq/auth";
 import { assertValidTransition } from "@/lib/osteq/quote-transitions";
+import { serializeDecimals } from "@/lib/osteq/serialize";
 
 export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
   let customerId: string;
@@ -46,11 +47,13 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
   if (!shippingAddress) {
     return NextResponse.json({ error: "shippingAddress is required to accept a quote." }, { status: 400 });
   }
-  if (quote.items.some((i) => i.quotedUnitPriceInPaise === null)) {
+  if (quote.items.some((i) => i.quotedUnitPriceInRupees === null)) {
     return NextResponse.json({ error: "Every line item must be priced before accepting." }, { status: 409 });
   }
 
-  const totalInPaise = quote.items.reduce((sum, i) => sum + i.quotedUnitPriceInPaise! * i.quantity, 0);
+  const totalInRupees = Math.round(
+    quote.items.reduce((sum, i) => sum + Number(i.quotedUnitPriceInRupees) * i.quantity, 0) * 100,
+  ) / 100;
 
   try {
     const order = await prisma.$transaction(async (tx) => {
@@ -84,14 +87,14 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
         data: {
           customerId,
           shippingAddress,
-          totalInPaise,
+          totalInRupees,
           items: {
             create: quote.items
               .filter((i) => i.productVariantId !== null)
               .map((i) => ({
                 variantId: i.productVariantId!,
                 quantity: i.quantity,
-                unitPriceInPaise: i.quotedUnitPriceInPaise!,
+                unitPriceInRupees: i.quotedUnitPriceInRupees!,
               })),
           },
         },
@@ -106,7 +109,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       return created;
     });
 
-    return NextResponse.json({ order });
+    return NextResponse.json(serializeDecimals({ order }));
   } catch (err) {
     return NextResponse.json({ error: err instanceof Error ? err.message : "Accept failed." }, { status: 409 });
   }
