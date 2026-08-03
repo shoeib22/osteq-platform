@@ -25,9 +25,24 @@ class OsteqApiClient {
         },
         onError: (error, handler) {
           final data = error.response?.data;
-          final message = data is Map && data['error'] is String
-              ? data['error'] as String
-              : 'Something went wrong. Please try again.';
+          final String message;
+          if (data is Map && data['error'] is String) {
+            // The backend sent a real, structured error response — use its message verbatim.
+            message = data['error'] as String;
+          } else if (error.type == DioExceptionType.connectionTimeout ||
+              error.type == DioExceptionType.sendTimeout ||
+              error.type == DioExceptionType.receiveTimeout) {
+            message = 'Request timed out. Check your connection and try again.';
+          } else if (error.type == DioExceptionType.connectionError) {
+            message = 'Network error. Please check your connection.';
+          } else if (error.response != null) {
+            // A response did come back, just not in the expected {error: string} shape
+            // (e.g. an HTML error page from an intermediary) — the status code is still a
+            // useful, honest signal, better than a fully generic message.
+            message = 'Server error (${error.response!.statusCode}). Please try again.';
+          } else {
+            message = 'Something went wrong. Please try again.';
+          }
           if (error.response?.statusCode == 401) {
             final context = rootNavigatorKey.currentContext;
             if (context != null && context.mounted) {

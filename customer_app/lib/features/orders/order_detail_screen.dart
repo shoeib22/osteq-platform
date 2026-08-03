@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'orders_provider.dart';
 
 class OrderDetailScreen extends ConsumerWidget {
@@ -12,7 +13,16 @@ class OrderDetailScreen extends ConsumerWidget {
     final orderAsync = ref.watch(orderDetailProvider(orderId));
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Order detail')),
+      appBar: AppBar(
+        title: const Text('Order detail'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.receipt_long_outlined),
+            tooltip: 'View invoice',
+            onPressed: () => context.pushNamed('orderInvoice', pathParameters: {'id': orderId}),
+          ),
+        ],
+      ),
       body: orderAsync.when(
         data: (order) => ListView(
           padding: const EdgeInsets.all(16),
@@ -22,13 +32,13 @@ class OrderDetailScreen extends ConsumerWidget {
             if (order.trackingNumber != null) Text('Tracking: ${order.trackingNumber}'),
             const Divider(height: 32),
             ...order.items.map((item) => ListTile(
-                  title: Text('Variant ${item.variantId.substring(0, 8)}'),
-                  subtitle: Text('Qty: ${item.quantity}'),
-                  trailing: Text('₹${(item.unitPriceInPaise * item.quantity / 100).toStringAsFixed(2)}'),
+                  title: Text(item.productName ?? item.sku ?? 'Variant ${item.variantId.substring(0, 8)}'),
+                  subtitle: Text('Qty: ${item.quantity} × ₹${item.unitPriceInRupees.toStringAsFixed(2)}'),
+                  trailing: Text('₹${item.lineTotalInRupees.toStringAsFixed(2)}'),
                 )),
             const Divider(height: 32),
             Text(
-              'Total: ₹${(order.totalInPaise / 100).toStringAsFixed(2)}',
+              'Total: ₹${order.totalInRupees.toStringAsFixed(2)}',
               style: Theme.of(context).textTheme.titleMedium,
             ),
           ],

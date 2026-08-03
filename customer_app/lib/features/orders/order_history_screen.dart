@@ -23,7 +23,7 @@ class OrderHistoryScreen extends ConsumerWidget {
               final order = orders[index];
               return ListTile(
                 title: Text('Order #${order.id.substring(0, 8)}'),
-                subtitle: Text('${order.status} — ₹${(order.totalInPaise / 100).toStringAsFixed(2)}'),
+                subtitle: Text('${order.status} — ₹${order.totalInRupees.toStringAsFixed(2)}'),
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () => context.pushNamed('orderDetail', pathParameters: {'id': order.id}),
               );

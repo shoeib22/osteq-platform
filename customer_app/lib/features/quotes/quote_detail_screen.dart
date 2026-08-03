@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/api_exception.dart';
+import '../addresses/address_model.dart';
+import '../addresses/address_repository.dart';
+import '../addresses/address_form_screen.dart';
 import 'quotes_provider.dart';
 import 'quotes_repository.dart';
 
@@ -16,15 +19,23 @@ class QuoteDetailScreen extends ConsumerStatefulWidget {
 
 class _QuoteDetailScreenState extends ConsumerState<QuoteDetailScreen> {
   final _messageController = TextEditingController();
-  final _addressController = TextEditingController();
   bool _busy = false;
   String? _error;
+  String? _selectedAddressId;
 
   @override
   void dispose() {
     _messageController.dispose();
-    _addressController.dispose();
     super.dispose();
+  }
+
+  Future<void> _addNewAddress() async {
+    final address = await Navigator.of(context).push<Address>(
+      MaterialPageRoute(builder: (context) => const AddressFormScreen()),
+    );
+    if (address != null && mounted) {
+      setState(() => _selectedAddressId = address.id);
+    }
   }
 
   Future<void> _sendMessage({required bool requestRevision}) async {
@@ -48,9 +59,9 @@ class _QuoteDetailScreenState extends ConsumerState<QuoteDetailScreen> {
     }
   }
 
-  Future<void> _respond(String decision) async {
-    if (decision == 'ACCEPTED' && _addressController.text.trim().isEmpty) {
-      setState(() => _error = 'Enter a shipping address to accept.');
+  Future<void> _respond(String decision, {Address? shippingTo}) async {
+    if (decision == 'ACCEPTED' && shippingTo == null) {
+      setState(() => _error = 'Choose a shipping address to accept.');
       return;
     }
     setState(() {
@@ -61,7 +72,7 @@ class _QuoteDetailScreenState extends ConsumerState<QuoteDetailScreen> {
       await ref.read(quotesRepositoryProvider).respond(
             widget.quoteId,
             decision,
-            shippingAddress: decision == 'ACCEPTED' ? _addressController.text.trim() : null,
+            shippingAddress: decision == 'ACCEPTED' ? shippingTo!.summary : null,
           );
       ref.invalidate(quotesProvider);
       if (mounted) context.pop();
@@ -88,15 +99,15 @@ class _QuoteDetailScreenState extends ConsumerState<QuoteDetailScreen> {
                   title: Text(item.description ?? 'Variant ${item.productVariantId?.substring(0, 8)}'),
                   subtitle: Text('Qty: ${item.quantity}'),
                   trailing: Text(
-                    item.quotedUnitPriceInPaise != null
-                        ? '₹${(item.quotedUnitPriceInPaise! * item.quantity / 100).toStringAsFixed(2)}'
+                    item.quotedUnitPriceInRupees != null
+                        ? '₹${(item.quotedUnitPriceInRupees! * item.quantity).toStringAsFixed(2)}'
                         : 'Not yet priced',
                   ),
                 )),
             if (quote.allItemsPriced) ...[
               const Divider(height: 32),
               Text(
-                'Total: ₹${(quote.totalInPaise / 100).toStringAsFixed(2)}',
+                'Total: ₹${quote.totalInRupees.toStringAsFixed(2)}',
                 style: Theme.of(context).textTheme.titleMedium,
               ),
             ],
@@ -128,29 +139,76 @@ class _QuoteDetailScreenState extends ConsumerState<QuoteDetailScreen> {
             ),
             if (quote.status == 'QUOTED') ...[
               const Divider(height: 32),
-              TextField(
-                controller: _addressController,
-                decoration: const InputDecoration(labelText: 'Shipping address (to accept)'),
-                maxLines: 2,
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: FilledButton(
-                      onPressed: _busy || !quote.allItemsPriced ? null : () => _respond('ACCEPTED'),
-                      child: const Text('Accept'),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: _busy ? null : () => _respond('REJECTED'),
-                      child: const Text('Reject'),
-                    ),
-                  ),
-                ],
-              ),
+              Text('Deliver to', style: Theme.of(context).textTheme.titleMedium),
+              const SizedBox(height: 8),
+              Builder(builder: (_) {
+                final addressesAsync = ref.watch(addressListProvider);
+                return addressesAsync.when(
+                  data: (addresses) {
+                    if (_selectedAddressId == null && addresses.isNotEmpty) {
+                      final defaultAddress = addresses.firstWhere(
+                        (a) => a.isDefault,
+                        orElse: () => addresses.first,
+                      );
+                      _selectedAddressId = defaultAddress.id;
+                    }
+                    Address? selected;
+                    for (final a in addresses) {
+                      if (a.id == _selectedAddressId) {
+                        selected = a;
+                        break;
+                      }
+                    }
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (addresses.isEmpty)
+                          const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 8),
+                            child: Text('No saved addresses yet — add one to accept.'),
+                          )
+                        else
+                          ...addresses.map(
+                            (address) => RadioListTile<String>(
+                              value: address.id,
+                              groupValue: _selectedAddressId,
+                              onChanged: (value) => setState(() => _selectedAddressId = value),
+                              title: Text(address.label),
+                              subtitle: Text(address.summary),
+                            ),
+                          ),
+                        TextButton.icon(
+                          onPressed: _addNewAddress,
+                          icon: const Icon(Icons.add),
+                          label: const Text('Add new address'),
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: FilledButton(
+                                onPressed: _busy || !quote.allItemsPriced || selected == null
+                                    ? null
+                                    : () => _respond('ACCEPTED', shippingTo: selected),
+                                child: const Text('Accept'),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: OutlinedButton(
+                                onPressed: _busy ? null : () => _respond('REJECTED'),
+                                child: const Text('Reject'),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    );
+                  },
+                  loading: () => const Center(child: CircularProgressIndicator()),
+                  error: (error, stack) => Text('Failed to load addresses: $error'),
+                );
+              }),
             ],
             if (_error != null) ...[
               const SizedBox(height: 12),

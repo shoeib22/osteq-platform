@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/api_exception.dart';
+import '../../widgets/osteq_logo.dart';
 import 'auth_repository.dart';
 
 class SignupScreen extends ConsumerStatefulWidget {
@@ -34,7 +35,9 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
             _emailController.text.trim(),
             _passwordController.text,
           );
-      if (mounted) Navigator.of(context).pop();
+      // No manual navigation here — the router's redirect reacts to the auth-state
+      // stream and moves off /signup on its own once a session exists. A manual pop()
+      // would break the case where /signup is the very first screen.
     } on ApiException catch (e) {
       if (mounted) setState(() => _error = e.message);
     } catch (e) {
@@ -47,12 +50,18 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Sign up')),
       body: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
+            const OsteqLogo(height: 56),
+            const SizedBox(height: 8),
+            Text(
+              'Create your trade account',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 40),
             TextField(
               controller: _emailController,
               decoration: const InputDecoration(labelText: 'Email'),

@@ -43,6 +43,12 @@ class AccountScreen extends ConsumerWidget {
               onTap: () => context.pushNamed('tradeApplication'),
             ),
             ListTile(
+              leading: const Icon(Icons.location_on_outlined),
+              title: const Text('Addresses'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => context.pushNamed('addresses'),
+            ),
+            ListTile(
               leading: const Icon(Icons.receipt_long_outlined),
               title: const Text('Order history'),
               trailing: const Icon(Icons.chevron_right),

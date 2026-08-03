@@ -12,6 +12,7 @@ class TradeApplicationRepository {
     required String businessType,
     required String phone,
     String? taxId,
+    String? addressId,
   }) async {
     try {
       final res = await _dio.post('/api/osteq/trade-applications', data: {
@@ -19,6 +20,7 @@ class TradeApplicationRepository {
         'businessType': businessType,
         'phone': phone,
         if (taxId != null) 'taxId': taxId,
+        if (addressId != null) 'addressId': addressId,
       });
       return TradeApplication.fromJson(res.data['application'] as Map<String, dynamic>);
     } on DioException catch (e) {

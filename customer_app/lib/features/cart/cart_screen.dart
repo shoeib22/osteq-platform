@@ -20,7 +20,7 @@ class CartScreen extends ConsumerWidget {
           if (items.isEmpty) {
             return const Center(child: Text('Your cart is empty'));
           }
-          final total = items.fold<int>(0, (sum, i) => sum + i.lineTotalInPaise);
+          final total = items.fold<double>(0, (sum, i) => sum + i.lineTotalInRupees);
           return Column(
             children: [
               Expanded(
@@ -65,7 +65,7 @@ class CartScreen extends ConsumerWidget {
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          PriceTag(priceInPaise: item.lineTotalInPaise, tier: item.tier),
+                          PriceTag(priceInRupees: item.lineTotalInRupees, tier: item.tier),
                           IconButton(
                             icon: const Icon(Icons.delete_outline),
                             onPressed: () =>
@@ -81,7 +81,7 @@ class CartScreen extends ConsumerWidget {
                 padding: const EdgeInsets.all(16),
                 child: FilledButton(
                   onPressed: () => context.pushNamed('checkout'),
-                  child: Text('Checkout — ₹${(total / 100).toStringAsFixed(2)}'),
+                  child: Text('Checkout — ₹${total.toStringAsFixed(2)}'),
                 ),
               ),
             ],

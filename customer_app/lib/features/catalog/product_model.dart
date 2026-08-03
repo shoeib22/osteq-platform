@@ -5,7 +5,7 @@ class ProductVariant {
   final String sku;
   final Map<String, dynamic> attributes;
   final int stockQuantity;
-  final int priceInPaise;
+  final double priceInRupees;
   final String tier;
 
   ProductVariant({
@@ -13,7 +13,7 @@ class ProductVariant {
     required this.sku,
     required this.attributes,
     required this.stockQuantity,
-    required this.priceInPaise,
+    required this.priceInRupees,
     required this.tier,
   });
 
@@ -23,7 +23,7 @@ class ProductVariant {
       sku: json['sku'] as String,
       attributes: Map<String, dynamic>.from(json['attributes'] as Map),
       stockQuantity: json['stockQuantity'] as int,
-      priceInPaise: json['priceInPaise'] as int,
+      priceInRupees: (json['priceInRupees'] as num).toDouble(),
       tier: json['tier'] as String,
     );
   }
@@ -64,6 +64,6 @@ class Product {
     );
   }
 
-  int get lowestPriceInPaise =>
-      variants.map((v) => v.priceInPaise).reduce((a, b) => a < b ? a : b);
+  double get lowestPriceInRupees =>
+      variants.map((v) => v.priceInRupees).reduce((a, b) => a < b ? a : b);
 }

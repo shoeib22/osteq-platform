@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/api_exception.dart';
+import '../../widgets/osteq_logo.dart';
 import 'auth_repository.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -34,7 +35,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             _emailController.text.trim(),
             _passwordController.text,
           );
-      if (mounted) Navigator.of(context).pop();
+      // No manual navigation here — the router's redirect reacts to the auth-state
+      // stream and moves off /login on its own. A manual pop() would break the case
+      // where /login is the very first screen (nothing to pop back to).
     } on ApiException catch (e) {
       if (mounted) setState(() => _error = e.message);
     } catch (e) {
@@ -47,12 +50,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Log in')),
       body: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
+            const OsteqLogo(height: 56),
+            const SizedBox(height: 8),
+            Text(
+              'Trade pricing for AV professionals',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 40),
             TextField(
               controller: _emailController,
               decoration: const InputDecoration(labelText: 'Email'),

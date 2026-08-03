@@ -3,7 +3,7 @@ class QuoteItem {
   final String? productVariantId;
   final String? description;
   final int quantity;
-  final int? quotedUnitPriceInPaise;
+  final double? quotedUnitPriceInRupees;
   final String? notes;
 
   QuoteItem({
@@ -11,7 +11,7 @@ class QuoteItem {
     this.productVariantId,
     this.description,
     required this.quantity,
-    this.quotedUnitPriceInPaise,
+    this.quotedUnitPriceInRupees,
     this.notes,
   });
 
@@ -21,7 +21,7 @@ class QuoteItem {
       productVariantId: json['productVariantId'] as String?,
       description: json['description'] as String?,
       quantity: json['quantity'] as int,
-      quotedUnitPriceInPaise: json['quotedUnitPriceInPaise'] as int?,
+      quotedUnitPriceInRupees: (json['quotedUnitPriceInRupees'] as num?)?.toDouble(),
       notes: json['notes'] as String?,
     );
   }
@@ -86,8 +86,8 @@ class Quote {
     );
   }
 
-  bool get allItemsPriced => items.every((i) => i.quotedUnitPriceInPaise != null);
+  bool get allItemsPriced => items.every((i) => i.quotedUnitPriceInRupees != null);
 
-  int get totalInPaise =>
-      items.fold(0, (sum, i) => sum + (i.quotedUnitPriceInPaise ?? 0) * i.quantity);
+  double get totalInRupees =>
+      items.fold(0.0, (sum, i) => sum + (i.quotedUnitPriceInRupees ?? 0) * i.quantity);
 }

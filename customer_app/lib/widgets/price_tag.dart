@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 
 class PriceTag extends StatelessWidget {
-  const PriceTag({super.key, required this.priceInPaise, required this.tier});
+  const PriceTag({super.key, required this.priceInRupees, required this.tier});
 
-  final int priceInPaise;
+  final double priceInRupees;
   final String tier;
 
   @override
   Widget build(BuildContext context) {
-    final rupees = (priceInPaise / 100).toStringAsFixed(2);
+    final rupees = priceInRupees.toStringAsFixed(2);
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [

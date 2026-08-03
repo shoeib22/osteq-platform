@@ -1,4 +1,6 @@
 import 'package:go_router/go_router.dart';
+import 'go_router_refresh_stream.dart';
+import 'supabase_client.dart';
 import '../features/auth/login_screen.dart';
 import '../features/auth/signup_screen.dart';
 import '../features/catalog/category_list_screen.dart';
@@ -13,13 +15,23 @@ import '../features/account/account_screen.dart';
 import '../features/orders/order_confirmation_screen.dart';
 import '../features/orders/order_history_screen.dart';
 import '../features/orders/order_detail_screen.dart';
+import '../features/orders/invoice_screen.dart';
 import '../features/shell/app_shell.dart';
 import '../features/trade/trade_application_screen.dart';
+import '../features/addresses/addresses_screen.dart';
 import 'navigator_key.dart';
 
 final router = GoRouter(
   navigatorKey: rootNavigatorKey,
   initialLocation: '/catalog',
+  refreshListenable: GoRouterRefreshStream(supabase.auth.onAuthStateChange),
+  redirect: (context, state) {
+    final isLoggedIn = supabase.auth.currentSession != null;
+    final isAuthRoute = state.matchedLocation == '/login' || state.matchedLocation == '/signup';
+    if (!isLoggedIn && !isAuthRoute) return '/login';
+    if (isLoggedIn && isAuthRoute) return '/catalog';
+    return null;
+  },
   routes: [
     GoRoute(path: '/login', name: 'login', builder: (context, state) => const LoginScreen()),
     GoRoute(path: '/signup', name: 'signup', builder: (context, state) => const SignupScreen()),
@@ -93,11 +105,23 @@ final router = GoRouter(
                 name: 'tradeApplication',
                 builder: (context, state) => const TradeApplicationScreen(),
               ),
+              GoRoute(
+                path: 'addresses',
+                name: 'addresses',
+                builder: (context, state) => const AddressesScreen(),
+              ),
               GoRoute(path: 'orders', name: 'orderHistory', builder: (context, state) => const OrderHistoryScreen()),
               GoRoute(
                 path: 'orders/:id',
                 name: 'orderDetail',
                 builder: (context, state) => OrderDetailScreen(orderId: state.pathParameters['id']!),
+                routes: [
+                  GoRoute(
+                    path: 'invoice',
+                    name: 'orderInvoice',
+                    builder: (context, state) => InvoiceScreen(orderId: state.pathParameters['id']!),
+                  ),
+                ],
               ),
             ],
           ),

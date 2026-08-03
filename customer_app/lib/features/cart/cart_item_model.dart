@@ -3,7 +3,7 @@ class CartItem {
   final String variantId;
   final String sku;
   final int quantity;
-  final int priceInPaise;
+  final double priceInRupees;
   final String tier;
 
   CartItem({
@@ -11,7 +11,7 @@ class CartItem {
     required this.variantId,
     required this.sku,
     required this.quantity,
-    required this.priceInPaise,
+    required this.priceInRupees,
     required this.tier,
   });
 
@@ -21,10 +21,10 @@ class CartItem {
       variantId: json['variantId'] as String,
       sku: json['sku'] as String,
       quantity: json['quantity'] as int,
-      priceInPaise: json['priceInPaise'] as int,
+      priceInRupees: (json['priceInRupees'] as num).toDouble(),
       tier: json['tier'] as String,
     );
   }
 
-  int get lineTotalInPaise => priceInPaise * quantity;
+  double get lineTotalInRupees => priceInRupees * quantity;
 }

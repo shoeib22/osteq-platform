@@ -24,7 +24,7 @@ class OrderConfirmationScreen extends ConsumerWidget {
               const SizedBox(height: 12),
               Text('Order #${order.id.substring(0, 8)} confirmed'),
               const SizedBox(height: 4),
-              Text('Total: ₹${(order.totalInPaise / 100).toStringAsFixed(2)}'),
+              Text('Total: ₹${order.totalInRupees.toStringAsFixed(2)}'),
               const SizedBox(height: 20),
               FilledButton(
                 onPressed: () => context.goNamed('catalog'),
