@@ -2,6 +2,8 @@ import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { CategoryForm } from "./CategoryForm";
 
+export const dynamic = "force-dynamic";
+
 export default async function CatalogPage() {
   const categories = await prisma.osteqCategory.findMany({ orderBy: { name: "asc" } });
 
