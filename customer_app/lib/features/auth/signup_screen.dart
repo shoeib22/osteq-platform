@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/api_exception.dart';
 import '../../widgets/osteq_logo.dart';
 import 'auth_repository.dart';
@@ -40,6 +41,11 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
       // would break the case where /signup is the very first screen.
     } on ApiException catch (e) {
       if (mounted) setState(() => _error = e.message);
+    } on AuthException catch (e) {
+      final message = e.code == 'user_already_exists'
+          ? 'Email already registered — try logging in instead.'
+          : 'Sign up failed. Please try again.';
+      if (mounted) setState(() => _error = message);
     } catch (e) {
       if (mounted) setState(() => _error = 'Sign up failed. Please try again.');
     } finally {
