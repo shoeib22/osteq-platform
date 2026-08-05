@@ -1,5 +1,10 @@
 # syntax=docker/dockerfile:1
 FROM node:20-slim AS base
+# node:20-slim ships without OpenSSL. Prisma's query engine needs libssl at both
+# `prisma generate` time (to pick the right engine binary) and runtime (to load it) —
+# without this, generate silently guesses openssl-1.1.x and the engine fails to load
+# with "libssl.so.1.1: cannot open shared object file".
+RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 
 # ---- deps: install once, cached across builds unless package*.json changes ----
 FROM base AS deps
@@ -25,6 +30,9 @@ ENV NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
 ENV NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
 
 RUN npm run build
+# This project has no public/ assets yet; ensure the dir exists so the runner
+# stage's COPY below doesn't fail if it's still absent.
+RUN mkdir -p /app/public
 
 # ---- runner: minimal image, only the standalone server output ----
 FROM base AS runner
