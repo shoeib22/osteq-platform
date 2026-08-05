@@ -1,0 +1,29 @@
+services:
+  osteq-app:
+    build:
+      context: .
+      args:
+        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+    container_name: osteq-app
+    restart: unless-stopped
+    ports:
+      # Published on all interfaces (not loopback-only like xerovolt-web) — the
+      # customer_app and admin dashboard both talk to 157.10.99.113:3000 directly,
+      # with no Caddy/domain in front of this app.
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
+      # supabase-pooler is this app's network alias for the self-hosted Supavisor
+      # pooler (see supabase_default network) — not localhost/the public IP, since
+      # this container has its own network namespace.
+      DATABASE_URL: postgresql://postgres.osteq:${POSTGRES_PASSWORD}@supabase-pooler:6543/postgres
+      DIRECT_URL: postgresql://postgres.osteq:${POSTGRES_PASSWORD}@supabase-pooler:5432/postgres
+    networks:
+      - supabase_default
+
+networks:
+  supabase_default:
+    external: true
