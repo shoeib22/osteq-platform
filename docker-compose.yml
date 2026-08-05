@@ -19,7 +19,11 @@ services:
       # supabase-pooler is this app's network alias for the self-hosted Supavisor
       # pooler (see supabase_default network) — not localhost/the public IP, since
       # this container has its own network namespace.
-      DATABASE_URL: postgresql://postgres.osteq:${POSTGRES_PASSWORD}@supabase-pooler:6543/postgres
+      # pgbouncer=true disables Prisma's prepared-statement caching, which is
+      # required in transaction-pooling mode (port 6543) — the pooler doesn't
+      # preserve prepared statements across pooled connections, so caching them
+      # causes "prepared statement already exists" errors under concurrent load.
+      DATABASE_URL: postgresql://postgres.osteq:${POSTGRES_PASSWORD}@supabase-pooler:6543/postgres?pgbouncer=true
       DIRECT_URL: postgresql://postgres.osteq:${POSTGRES_PASSWORD}@supabase-pooler:5432/postgres
     networks:
       - supabase_default
