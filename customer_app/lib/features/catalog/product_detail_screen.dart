@@ -138,30 +138,36 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                           color: variant.stockQuantity > 0 ? AppColors.success : AppColors.error,
                         ),
                       ),
-                    ],
-                    const SizedBox(height: 20),
-                    Row(
-                      children: [
-                        _QuantityStepper(
-                          quantity: _quantity,
-                          onDecrement: _quantity > 1 ? () => setState(() => _quantity--) : null,
-                          onIncrement: () => setState(() => _quantity++),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: FilledButton(
-                            onPressed: variant == null || _adding ? null : _addToCart,
-                            child: _adding
-                                ? const SizedBox(
-                                    height: 16,
-                                    width: 16,
-                                    child: CircularProgressIndicator(strokeWidth: 2),
-                                  )
-                                : const Text('Add to cart'),
+                      const SizedBox(height: 20),
+                      Row(
+                        children: [
+                          _QuantityStepper(
+                            quantity: _quantity,
+                            onDecrement: _quantity > 1 ? () => setState(() => _quantity--) : null,
+                            onIncrement: () => setState(() => _quantity++),
                           ),
-                        ),
-                      ],
-                    ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: FilledButton(
+                              onPressed: _adding ? null : _addToCart,
+                              child: _adding
+                                  ? const SizedBox(
+                                      height: 16,
+                                      width: 16,
+                                      child: CircularProgressIndicator(strokeWidth: 2),
+                                    )
+                                  : const Text('Add to cart'),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ] else ...[
+                      const SizedBox(height: 16),
+                      Text(
+                        'Currently unavailable',
+                        style: TextStyle(color: AppColors.error),
+                      ),
+                    ],
                   ],
                 ),
               ),

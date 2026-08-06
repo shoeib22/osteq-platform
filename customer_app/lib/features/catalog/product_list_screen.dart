@@ -73,6 +73,11 @@ class ProductListScreen extends ConsumerWidget {
                                 PriceTag(
                                   priceInRupees: product.lowestPriceInRupees,
                                   tier: product.variants.first.tier,
+                                )
+                              else
+                                Text(
+                                  'Unavailable',
+                                  style: TextStyle(color: AppColors.error, fontSize: 12),
                                 ),
                             ],
                           ),
