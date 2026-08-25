@@ -1,18 +1,23 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../catalog/catalog_provider.dart';
+import '../catalog/product_model.dart';
+import '../../widgets/product_image.dart';
 import 'projector_math.dart';
 
 enum InstallationType { desktop, ceiling }
 
-class ProjectorCalculatorScreen extends StatefulWidget {
+class ProjectorCalculatorScreen extends ConsumerStatefulWidget {
   const ProjectorCalculatorScreen({super.key});
 
   @override
-  State<ProjectorCalculatorScreen> createState() => _ProjectorCalculatorScreenState();
+  ConsumerState<ProjectorCalculatorScreen> createState() => _ProjectorCalculatorScreenState();
 }
 
-class _ProjectorCalculatorScreenState extends State<ProjectorCalculatorScreen> {
+class _ProjectorCalculatorScreenState extends ConsumerState<ProjectorCalculatorScreen> {
   InstallationType _installationType = InstallationType.desktop;
   ProjectorAspectRatio _ratio = ProjectorAspectRatio.ratio16x9;
+  Product? _selectedProjector;
 
   // Room dimension (meters).
   final _roomHController = TextEditingController(text: '2.7');
@@ -54,6 +59,85 @@ class _ProjectorCalculatorScreenState extends State<ProjectorCalculatorScreen> {
   }
 
   double? _parse(TextEditingController c) => double.tryParse(c.text.trim());
+
+  ProjectorAspectRatio _ratioFromSpec(String? label) {
+    switch (label) {
+      case '4:3':
+        return ProjectorAspectRatio.ratio4x3;
+      case '16:10':
+        return ProjectorAspectRatio.ratio16x10;
+      case '21:9':
+        return ProjectorAspectRatio.ratio21x9;
+      case '16:9':
+      default:
+        return ProjectorAspectRatio.ratio16x9;
+    }
+  }
+
+  // Fills the throw-ratio fields (and aspect ratio) from a catalog projector's specs —
+  // the fields stay plain TextEditingControllers afterwards, so the user can still hand-edit
+  // them (e.g. to model a non-standard lens position) without the picker fighting back.
+  void _applyProjectorSpecs(Product product) {
+    final specs = product.specs;
+    if (specs == null) return;
+    final wide = (specs['throwRatioWide'] as num?)?.toDouble();
+    final tele = (specs['throwRatioTele'] as num?)?.toDouble();
+    setState(() {
+      _selectedProjector = product;
+      _ratio = _ratioFromSpec(specs['aspectRatio'] as String?);
+      if (wide != null) _throwRatioWideController.text = wide.toString();
+      if (tele != null) _throwRatioTeleController.text = tele.toString();
+    });
+    _recomputeFromDiagonal();
+  }
+
+  Future<void> _pickProjector() async {
+    final products = await ref.read(projectorProductsProvider.future);
+    if (!mounted) return;
+    if (products.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No projectors in the catalog yet.')),
+      );
+      return;
+    }
+    final selected = await showModalBottomSheet<Product>(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.7,
+        expand: false,
+        builder: (context, scrollController) => ListView.separated(
+          controller: scrollController,
+          padding: const EdgeInsets.all(16),
+          itemCount: products.length,
+          separatorBuilder: (_, _) => const Divider(height: 1),
+          itemBuilder: (context, index) {
+            final product = products[index];
+            final specs = product.specs;
+            final wide = specs?['throwRatioWide'];
+            final tele = specs?['throwRatioTele'];
+            final throwLabel = (wide != null && tele != null)
+                ? (wide == tele ? 'Throw ratio $wide:1' : 'Throw ratio $wide–$tele:1')
+                : null;
+            return ListTile(
+              leading: SizedBox(
+                width: 48,
+                height: 48,
+                child: ProductImage(
+                  imagePath: product.images.isNotEmpty ? product.images.first : null,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              title: Text(product.name),
+              subtitle: throwLabel != null ? Text(throwLabel) : null,
+              onTap: () => Navigator.of(context).pop(product),
+            );
+          },
+        ),
+      ),
+    );
+    if (selected != null) _applyProjectorSpecs(selected);
+  }
 
   double get _throwRatioWide => _parse(_throwRatioWideController) ?? 0;
 
@@ -143,6 +227,34 @@ class _ProjectorCalculatorScreenState extends State<ProjectorCalculatorScreen> {
           ),
           const SizedBox(height: 24),
           _sectionLabel('Projector'),
+          if (_selectedProjector != null)
+            Card(
+              margin: const EdgeInsets.only(bottom: 12),
+              child: ListTile(
+                leading: SizedBox(
+                  width: 40,
+                  height: 40,
+                  child: ProductImage(
+                    imagePath: _selectedProjector!.images.isNotEmpty ? _selectedProjector!.images.first : null,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                ),
+                title: Text(_selectedProjector!.name),
+                subtitle: const Text('Specs applied below — edit any field to override.'),
+                trailing: IconButton(
+                  icon: const Icon(Icons.close),
+                  tooltip: 'Clear selection',
+                  onPressed: () => setState(() => _selectedProjector = null),
+                ),
+              ),
+            )
+          else
+            OutlinedButton.icon(
+              onPressed: _pickProjector,
+              icon: const Icon(Icons.videocam_outlined),
+              label: const Text('Choose a projector from the catalog'),
+            ),
+          const SizedBox(height: 12),
           DropdownButtonFormField<ProjectorAspectRatio>(
             initialValue: _ratio,
             decoration: const InputDecoration(labelText: 'Aspect ratio'),

@@ -36,6 +36,7 @@ class Product {
   final String name;
   final String slug;
   final String? description;
+  final Map<String, dynamic>? specs;
   final List<String> images;
   final Category category;
   final List<ProductVariant> variants;
@@ -45,6 +46,7 @@ class Product {
     required this.name,
     required this.slug,
     this.description,
+    this.specs,
     required this.images,
     required this.category,
     required this.variants,
@@ -56,6 +58,7 @@ class Product {
       name: json['name'] as String,
       slug: json['slug'] as String,
       description: json['description'] as String?,
+      specs: json['specs'] == null ? null : Map<String, dynamic>.from(json['specs'] as Map),
       images: (json['images'] as List).map((e) => e as String).toList(),
       category: Category.fromJson(json['category'] as Map<String, dynamic>),
       variants: (json['variants'] as List)

@@ -1,0 +1,302 @@
+[
+  {
+    "name": "BenQ W2720i",
+    "aspectRatio": "16:9",
+    "throwRatioWide": 1.0,
+    "throwRatioTele": 1.3,
+    "resolution": "4K UHD (3840x2160)",
+    "imageUrl": "https://image.benq.com/is/image/benqco/w2720i-right30?$ResponsivePreset$&fmt=png-alpha",
+    "sourceUrl": "https://www.benq.com/en-us/projector/cinema/w2720i.html",
+    "priceNote": null
+  },
+  {
+    "name": "BenQ HT2060",
+    "aspectRatio": "16:9",
+    "throwRatioWide": 1.15,
+    "throwRatioTele": 1.5,
+    "resolution": "1080P (1920x1080)",
+    "imageUrl": null,
+    "sourceUrl": "https://www.benq.com/en-us/projector/cinema/ht2060.html",
+    "priceNote": null
+  },
+  {
+    "name": "BenQ HT4550i",
+    "aspectRatio": "16:9",
+    "throwRatioWide": 1.15,
+    "throwRatioTele": 1.50,
+    "resolution": "4K UHD (3840x2160)",
+    "imageUrl": null,
+    "sourceUrl": "https://www.benq.com/en-us/projector/cinema/ht4550i.html",
+    "priceNote": null
+  },
+  {
+    "name": "BenQ HT8060",
+    "aspectRatio": "16:9",
+    "throwRatioWide": 1.36,
+    "throwRatioTele": 2.03,
+    "resolution": "4K UHD (3840x2160)",
+    "imageUrl": null,
+    "sourceUrl": "https://www.benq.com/en-us/projector/cinema/ht8060.html",
+    "priceNote": null
+  },
+  {
+    "name": "BenQ W4100i",
+    "aspectRatio": "16:9",
+    "throwRatioWide": 1.15,
+    "throwRatioTele": 1.50,
+    "resolution": "4K UHD (3840x2160)",
+    "imageUrl": "https://image.benq.com/is/image/benqco/w4100i-right30?$ResponsivePreset$&fmt=png-alpha",
+    "sourceUrl": "https://www.benq.com/en-us/projector/cinema/w4100i.html",
+    "priceNote": null
+  },
+  {
+    "name": "BenQ W5800",
+    "aspectRatio": "16:9",
+    "throwRatioWide": 1.52,
+    "throwRatioTele": 2.45,
+    "resolution": "4K UHD (3840x2160)",
+    "imageUrl": "https://image.benq.com/is/image/benqco/cinema-w5800-long-lasting-colors?$ResponsivePreset$",
+    "sourceUrl": "https://www.benq.com/en-us/projector/cinema/w5800.html",
+    "priceNote": null
+  },
+  {
+    "name": "BenQ W5850",
+    "aspectRatio": "16:9",
+    "throwRatioWide": 1.0,
+    "throwRatioTele": 1.6,
+    "resolution": "4K UHD (3840x2160)",
+    "imageUrl": "https://image.benq.com/is/image/benqco/w5850-distance1?$ResponsivePreset$",
+    "sourceUrl": "https://www.benq.com/en-us/projector/cinema/w5850.html",
+    "priceNote": null
+  },
+  {
+    "name": "BenQ HT3550",
+    "aspectRatio": "16:9",
+    "throwRatioWide": 1.13,
+    "throwRatioTele": 1.47,
+    "resolution": "4K UHD (3840x2160)",
+    "imageUrl": "https://image.benq.com/is/image/benqco/cinema-ht3550-color-accuracy?$ResponsivePreset$",
+    "sourceUrl": "https://www.benq.com/en-us/projector/cinema/ht3550.html",
+    "priceNote": null
+  },
+  {
+    "name": "BenQ HT3560",
+    "aspectRatio": "16:9",
+    "throwRatioWide": 1.13,
+    "throwRatioTele": 1.47,
+    "resolution": "4K UHD (3840x2160)",
+    "imageUrl": "https://image.benq.com/is/image/benqco/cinema-w2710-contrast-enhancement?$ResponsivePreset$",
+    "sourceUrl": "https://www.benq.com/en-us/projector/cinema/ht3560.html",
+    "priceNote": null
+  },
+  {
+    "name": "BenQ HT2050A",
+    "aspectRatio": "16:9",
+    "throwRatioWide": 1.15,
+    "throwRatioTele": 1.5,
+    "resolution": "1080P (1920x1080)",
+    "imageUrl": "https://image.benq.com/is/image/benqco/cinema-ht2050a-sound",
+    "sourceUrl": "https://www.benq.com/en-us/projector/cinema/ht2050a.html",
+    "priceNote": null
+  },
+  {
+    "name": "BenQ HT2150ST",
+    "aspectRatio": "16:9",
+    "throwRatioWide": 0.69,
+    "throwRatioTele": 0.83,
+    "resolution": "1080P (1920x1080)",
+    "imageUrl": "https://image.benq.com/is/image/benqco/cinema-ht2150st-sound?$ResponsivePreset$",
+    "sourceUrl": "https://www.benq.com/en-us/projector/cinema/ht2150st.html",
+    "priceNote": null
+  },
+  {
+    "name": "BenQ TK850",
+    "aspectRatio": "16:9",
+    "throwRatioWide": 1.13,
+    "throwRatioTele": 1.47,
+    "resolution": "4K UHD (3840x2160)",
+    "imageUrl": "https://image.benq.com/is/image/benqco/cinema-tk850-hdr-pro?$ResponsivePreset$",
+    "sourceUrl": "https://www.benq.com/en-us/projector/cinema/tk850.html",
+    "priceNote": null
+  },
+  {
+    "name": "BenQ TK860i",
+    "aspectRatio": "16:9",
+    "throwRatioWide": 1.13,
+    "throwRatioTele": 1.47,
+    "resolution": "4K UHD (3840x2160)",
+    "imageUrl": "https://image.benq.com/is/image/benqco/cinema-tk860i-contrast-enhancement?$ResponsivePreset$",
+    "sourceUrl": "https://www.benq.com/en-us/projector/cinema/tk860i.html",
+    "priceNote": null
+  },
+  {
+    "name": "BenQ TK810",
+    "aspectRatio": "16:9",
+    "throwRatioWide": 1.48,
+    "throwRatioTele": 1.62,
+    "resolution": "4K UHD (3840x2160)",
+    "imageUrl": "https://image.benq.com/is/image/benqco/cinema-tk810-feel-hdr?$ResponsivePreset$",
+    "sourceUrl": "https://www.benq.com/en-us/projector/cinema/tk810.html",
+    "priceNote": null
+  },
+  {
+    "name": "BenQ GP520",
+    "aspectRatio": "16:9",
+    "throwRatioWide": 1.2,
+    "throwRatioTele": 1.2,
+    "resolution": "4K UHD (3840x2160)",
+    "imageUrl": "https://image.benq.com/is/image/benqco/gp520-speac?$ResponsivePreset$",
+    "sourceUrl": "https://www.benq.com/en-us/projector/cinema/gp520.html",
+    "priceNote": null
+  },
+  {
+    "name": "BenQ GP500",
+    "aspectRatio": "16:9",
+    "throwRatioWide": 1.0,
+    "throwRatioTele": 1.3,
+    "resolution": "4K UHD (3840x2160)",
+    "imageUrl": "https://image.benq.com/is/image/benqco/cinema-gp500-bigger-awesome-images?$ResponsivePreset$",
+    "sourceUrl": "https://www.benq.com/en-us/projector/cinema/gp500.html",
+    "priceNote": null
+  },
+  {
+    "name": "BenQ TK705i",
+    "aspectRatio": "16:9",
+    "throwRatioWide": 1.0,
+    "throwRatioTele": 1.3,
+    "resolution": "4K UHD (3840x2160)",
+    "imageUrl": "https://image.benq.com/is/image/benqco/tk705i-specification-small-1?$ResponsivePreset$",
+    "sourceUrl": "https://www.benq.com/en-us/projector/cinema/tk705i.html",
+    "priceNote": null
+  },
+  {
+    "name": "BenQ TK705STi",
+    "aspectRatio": "16:9",
+    "throwRatioWide": 0.8,
+    "throwRatioTele": 0.8,
+    "resolution": "4K UHD (3840x2160)",
+    "imageUrl": "https://image.benq.com/is/image/benqco/tk705sti-specification-small-2?$ResponsivePreset$",
+    "sourceUrl": "https://www.benq.com/en-us/projector/cinema/tk705sti.html",
+    "priceNote": null
+  },
+  {
+    "name": "BenQ TK710",
+    "aspectRatio": "16:9",
+    "throwRatioWide": 1.15,
+    "throwRatioTele": 1.5,
+    "resolution": "4K UHD (3840x2160)",
+    "imageUrl": "https://image.benq.com/is/image/benqco/tk710-right30?$ResponsivePreset$&fmt=png-alpha",
+    "sourceUrl": "https://www.benq.com/en-us/projector/gaming/tk710.html",
+    "priceNote": null
+  },
+  {
+    "name": "BenQ TK710STi",
+    "aspectRatio": "16:9",
+    "throwRatioWide": 0.69,
+    "throwRatioTele": 0.83,
+    "resolution": "4K UHD (3840x2160)",
+    "imageUrl": "https://image.benq.com/is/image/benqco/tk710sti-vibrant-colors",
+    "sourceUrl": "https://www.benq.com/en-us/projector/gaming/tk710sti.html",
+    "priceNote": null
+  },
+  {
+    "name": "BenQ TK700ST",
+    "aspectRatio": "16:9",
+    "throwRatioWide": 0.9,
+    "throwRatioTele": 1.08,
+    "resolution": "4K UHD (3840x2160)",
+    "imageUrl": "https://image.benq.com/is/image/benqco/gaming-tk700st-input-lag?$ResponsivePreset$",
+    "sourceUrl": "https://www.benq.com/en-us/projector/gaming/tk700st.html",
+    "priceNote": null
+  },
+  {
+    "name": "BenQ TK700STi",
+    "aspectRatio": "16:9",
+    "throwRatioWide": 0.9,
+    "throwRatioTele": 1.08,
+    "resolution": "4K UHD (3840x2160)",
+    "imageUrl": "https://image.benq.com/is/image/benqco/gaming-tk700sti-4k?$ResponsivePreset$",
+    "sourceUrl": "https://www.benq.com/en-us/projector/gaming/tk700sti.html",
+    "priceNote": null
+  },
+  {
+    "name": "BenQ TH671ST",
+    "aspectRatio": "16:9",
+    "throwRatioWide": 0.69,
+    "throwRatioTele": 0.83,
+    "resolution": "1080P (1920x1080)",
+    "imageUrl": "https://image.benq.com/is/image/benqco/th671st-right30?$ResponsivePreset$&fmt=png-alpha",
+    "sourceUrl": "https://www.benq.com/en-us/projector/cinema/th671st.html",
+    "priceNote": null
+  },
+  {
+    "name": "BenQ TH575",
+    "aspectRatio": "16:9",
+    "throwRatioWide": 1.49,
+    "throwRatioTele": 1.64,
+    "resolution": "1080P (1920x1080)",
+    "imageUrl": "https://image.benq.com/is/image/benqco/th575-right30-1?$ResponsivePreset$",
+    "sourceUrl": "https://www.benq.com/en-us/projector/cinema/th575.html",
+    "priceNote": null
+  },
+  {
+    "name": "BenQ TH575i",
+    "aspectRatio": "16:9",
+    "throwRatioWide": 1.49,
+    "throwRatioTele": 1.64,
+    "resolution": "1080P (1920x1080)",
+    "imageUrl": "https://image.benq.com/is/image/benqco/th575i-spec1?$ResponsivePreset$",
+    "sourceUrl": "https://www.benq.com/en-us/projector/cinema/th575i.html",
+    "priceNote": null
+  },
+  {
+    "name": "BenQ TH585",
+    "aspectRatio": "16:9",
+    "throwRatioWide": 1.5,
+    "throwRatioTele": 1.65,
+    "resolution": "1080P (1920x1080)",
+    "imageUrl": "https://image.benq.com/is/image/benqco/cinema-th585-low-input-lag.jpg",
+    "sourceUrl": "https://www.benq.com/en-us/projector/cinema/th585.html",
+    "priceNote": null
+  },
+  {
+    "name": "BenQ TH585P",
+    "aspectRatio": "16:9",
+    "throwRatioWide": 1.5,
+    "throwRatioTele": 1.65,
+    "resolution": "1080P (1920x1080)",
+    "imageUrl": "https://image.benq.com/is/image/benqco/th585p-right30?$ResponsivePreset$",
+    "sourceUrl": "https://www.benq.com/en-us/projector/cinema/th585p.html",
+    "priceNote": null
+  },
+  {
+    "name": "BenQ TH685",
+    "aspectRatio": "16:9",
+    "throwRatioWide": 1.127,
+    "throwRatioTele": 1.46,
+    "resolution": "1080P (1920x1080)",
+    "imageUrl": "https://image.benq.com/is/image/benqco/cinema-th685-hdr?$ResponsivePreset$",
+    "sourceUrl": "https://www.benq.com/en-us/projector/cinema/th685.html",
+    "priceNote": null
+  },
+  {
+    "name": "BenQ TH685i",
+    "aspectRatio": "16:9",
+    "throwRatioWide": 1.127,
+    "throwRatioTele": 1.46,
+    "resolution": "1080P (1920x1080)",
+    "imageUrl": "https://image.benq.com/is/image/benqco/th685i-gallery-04?$ResponsivePreset$&fmt=png-alpha",
+    "sourceUrl": "https://www.benq.com/en-us/projector/cinema/th685i.html",
+    "priceNote": null
+  },
+  {
+    "name": "BenQ TH685P",
+    "aspectRatio": "16:9",
+    "throwRatioWide": 1.127,
+    "throwRatioTele": 1.46,
+    "resolution": "1080P (1920x1080)",
+    "imageUrl": "https://image.benq.com/is/image/benqco/th685p-right30?$ResponsivePreset$",
+    "sourceUrl": "https://www.benq.com/en-us/projector/cinema/th685p.html",
+    "priceNote": null
+  }
+]
