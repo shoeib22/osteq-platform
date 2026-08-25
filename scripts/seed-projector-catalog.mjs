@@ -1,15 +1,19 @@
-// One-off catalog import: seeds BenQ's home theater projector lineup into the "Projectors"
-// category so the Flutter app's Projector Calculator can pick a real model and auto-fill its
-// throw ratio, instead of the user having to type it in from a spec sheet by hand.
+// General-purpose catalog import: seeds a JSON list of projector models into the
+// "Projectors" category so the Flutter app's Projector Calculator can pick a real model and
+// auto-fill its throw ratio, instead of the user having to type it in from a spec sheet.
 //
-// Source data (name, throw ratio, aspect ratio, image URL) was pulled from each model's
-// official benq.com spec page — see scripts/data/benq-projectors.json for the source URL
-// per model. Osteq doesn't distribute BenQ; these entries exist for the calculator's model
-// picker, not for sale, so they're seeded with no variants (the catalog UI already renders
+// Usage:
+//   DATABASE_URL=... NEXT_PUBLIC_SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... \
+//     node scripts/seed-projector-catalog.mjs <data-file.json>
+// <data-file.json> is relative to scripts/data/ (default: benq-projectors.json).
+//
+// Osteq doesn't distribute these brands; entries exist for the calculator's model picker,
+// not for sale, so they're seeded with no variants (the catalog UI already renders
 // "Unavailable" for a product with no active variant).
 //
-// Usage: DATABASE_URL=... DIRECT_URL=... NEXT_PUBLIC_SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... node scripts/seed-benq-projectors.mjs
-// Safe to re-run: matches products by slug and only re-uploads an image if the product doesn't have one yet.
+// Safe to re-run: matches products by slug and only re-uploads an image if the product
+// doesn't already have one — re-running with refined data (e.g. a corrected throw ratio)
+// updates specs without touching an existing image.
 
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -19,9 +23,21 @@ import { PrismaClient } from "@prisma/client";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const BUCKET = "product-images";
 const CATEGORY = { name: "Projectors", slug: "projectors" };
+const SPEC_FIELDS = [
+  "brand",
+  "throwRatioWide",
+  "throwRatioTele",
+  "aspectRatio",
+  "resolution",
+  "category",
+  "status",
+  "sourceUrl",
+  "verificationNote",
+];
 
 function slugify(name) {
   return name
+    .replace(/\+/g, "-plus")
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
@@ -37,8 +53,8 @@ function extensionForContentType(contentType) {
 // inside the deployed app container, whose production node_modules is Next's traced
 // "standalone" output (only what the app's own bundled code imports) and doesn't carry
 // @supabase/supabase-js as an installable package there, unlike this repo's dev node_modules.
-async function uploadToStorage(supabaseUrl, serviceRoleKey, bucket, path, bytes, contentType) {
-  const res = await fetch(`${supabaseUrl}/storage/v1/object/${bucket}/${path}`, {
+async function uploadToStorage(supabaseUrl, serviceRoleKey, bucket, storagePath, bytes, contentType) {
+  const res = await fetch(`${supabaseUrl}/storage/v1/object/${bucket}/${storagePath}`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${serviceRoleKey}`,
@@ -62,33 +78,33 @@ async function main() {
     process.exit(1);
   }
 
+  const dataFile = process.argv[2] ?? "benq-projectors.json";
+
   const prisma = new PrismaClient();
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-  const projectors = JSON.parse(readFileSync(path.join(__dirname, "data", "benq-projectors.json"), "utf-8"));
+  const projectors = JSON.parse(readFileSync(path.join(__dirname, "data", dataFile), "utf-8"));
 
   const category = await prisma.osteqCategory.upsert({
     where: { slug: CATEGORY.slug },
     update: {},
     create: CATEGORY,
   });
-  console.log(`Category "${category.name}" ready (${category.id}).`);
+  console.log(`Category "${category.name}" ready (${category.id}). Importing ${dataFile} (${projectors.length} rows).`);
 
   let created = 0;
   let updated = 0;
   let imagesUploaded = 0;
   let imagesSkipped = 0;
+  let noThrowRatio = 0;
 
   for (const item of projectors) {
-    const slug = slugify(item.name);
-    const specs = {
-      throwRatioWide: item.throwRatioWide,
-      throwRatioTele: item.throwRatioTele,
-      aspectRatio: item.aspectRatio,
-      resolution: item.resolution ?? null,
-      sourceUrl: item.sourceUrl,
-    };
+    const slug = item.slug ?? slugify(item.name);
+    const specs = Object.fromEntries(
+      SPEC_FIELDS.filter((k) => item[k] !== undefined && item[k] !== null).map((k) => [k, item[k]]),
+    );
+    if (specs.throwRatioWide == null) noThrowRatio++;
 
     const existing = await prisma.osteqProduct.findUnique({ where: { slug } });
     const product = await prisma.osteqProduct.upsert({
@@ -127,12 +143,12 @@ async function main() {
       }
     } else if (!item.imageUrl) {
       imagesSkipped++;
-      console.log(`  · ${item.name} — no source image, left blank`);
     }
   }
 
   console.log(
-    `\nDone. ${created} created, ${updated} updated, ${imagesUploaded} images uploaded, ${imagesSkipped} without a source image.`,
+    `\nDone. ${created} created, ${updated} updated, ${imagesUploaded} images uploaded, ` +
+      `${imagesSkipped} without a source image, ${noThrowRatio} without a throw ratio.`,
   );
   await prisma.$disconnect();
 }

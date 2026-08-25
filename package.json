@@ -8,7 +8,8 @@
     "postinstall": "prisma generate",
     "start": "next start",
     "lint": "next lint",
-    "seed:projectors": "node scripts/seed-benq-projectors.mjs"
+    "seed:projectors": "node scripts/seed-projector-catalog.mjs benq-projectors.json",
+    "seed:projector-catalog": "node scripts/seed-projector-catalog.mjs projector-catalog-import.json"
   },
   "dependencies": {
     "@prisma/client": "^5.19.1",
