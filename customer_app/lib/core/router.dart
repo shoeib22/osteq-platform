@@ -19,6 +19,7 @@ import '../features/orders/invoice_screen.dart';
 import '../features/shell/app_shell.dart';
 import '../features/trade/trade_application_screen.dart';
 import '../features/addresses/addresses_screen.dart';
+import '../features/projector_calculator/projector_calculator_screen.dart';
 import 'navigator_key.dart';
 
 final router = GoRouter(
@@ -109,6 +110,11 @@ final router = GoRouter(
                 path: 'addresses',
                 name: 'addresses',
                 builder: (context, state) => const AddressesScreen(),
+              ),
+              GoRoute(
+                path: 'projector-calculator',
+                name: 'projectorCalculator',
+                builder: (context, state) => const ProjectorCalculatorScreen(),
               ),
               GoRoute(path: 'orders', name: 'orderHistory', builder: (context, state) => const OrderHistoryScreen()),
               GoRoute(

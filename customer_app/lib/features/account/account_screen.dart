@@ -54,6 +54,12 @@ class AccountScreen extends ConsumerWidget {
               trailing: const Icon(Icons.chevron_right),
               onTap: () => context.pushNamed('orderHistory'),
             ),
+            ListTile(
+              leading: const Icon(Icons.aspect_ratio_outlined),
+              title: const Text('Projector calculator'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => context.pushNamed('projectorCalculator'),
+            ),
             const Divider(height: 32),
             ListTile(
               leading: const Icon(Icons.logout),
