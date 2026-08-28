@@ -4,6 +4,7 @@ import '../catalog/catalog_provider.dart';
 import '../catalog/product_model.dart';
 import '../../widgets/product_image.dart';
 import 'projector_math.dart';
+import 'throw_distance_diagram.dart';
 
 enum InstallationType { desktop, ceiling }
 
@@ -320,6 +321,8 @@ class _ProjectorCalculatorScreenState extends ConsumerState<ProjectorCalculatorS
             onChanged: (_) => _recomputeFromDistance(),
           ),
           const SizedBox(height: 24),
+          _buildDiagram(),
+          const SizedBox(height: 24),
           _buildSummary(),
         ],
       ),
@@ -337,6 +340,21 @@ class _ProjectorCalculatorScreenState extends ConsumerState<ProjectorCalculatorS
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
       decoration: InputDecoration(labelText: label),
       onChanged: onChanged,
+    );
+  }
+
+  Widget _buildDiagram() {
+    final distance = _parse(_distanceController);
+    final heightIn = _parse(_heightController);
+    if (distance == null || distance <= 0 || heightIn == null || heightIn <= 0) {
+      return const SizedBox.shrink();
+    }
+    return ThrowDistanceDiagram(
+      installationType: _installationType,
+      throwDistanceMeters: distance,
+      screenHeightMeters: heightIn * 0.0254,
+      roomLengthMeters: _parse(_roomLController),
+      roomHeightMeters: _parse(_roomHController),
     );
   }
 
