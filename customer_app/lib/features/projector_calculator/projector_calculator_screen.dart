@@ -2,11 +2,28 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../catalog/catalog_provider.dart';
 import '../catalog/product_model.dart';
-import '../../widgets/product_image.dart';
 import 'projector_math.dart';
 import 'throw_distance_diagram.dart';
 
 enum InstallationType { desktop, ceiling }
+
+/// Length unit for display/entry — internal math always stays in meters (throw/room
+/// fields) or inches (screen-size fields); this only converts at the text-field layer.
+enum DistanceUnit {
+  feet('Feet', 'ft', 0.3048),
+  inches('Inches', 'in', 0.0254),
+  centimeters('Centimeters', 'cm', 0.01),
+  meters('Meters', 'm', 1.0);
+
+  const DistanceUnit(this.label, this.abbr, this.metersPerUnit);
+
+  final String label;
+  final String abbr;
+  final double metersPerUnit;
+
+  double toMeters(double value) => value * metersPerUnit;
+  double fromMeters(double meters) => meters / metersPerUnit;
+}
 
 class ProjectorCalculatorScreen extends ConsumerStatefulWidget {
   const ProjectorCalculatorScreen({super.key});
@@ -19,6 +36,11 @@ class _ProjectorCalculatorScreenState extends ConsumerState<ProjectorCalculatorS
   InstallationType _installationType = InstallationType.desktop;
   ProjectorAspectRatio _ratio = ProjectorAspectRatio.ratio16x9;
   Product? _selectedProjector;
+
+  // Display units — Throw Distance applies to the room dimensions and the
+  // projector-to-screen distance; Image Size applies to diagonal/width/height.
+  DistanceUnit _throwUnit = DistanceUnit.meters;
+  DistanceUnit _sizeUnit = DistanceUnit.inches;
 
   // Room dimension (meters).
   final _roomHController = TextEditingController(text: '2.7');
@@ -60,6 +82,105 @@ class _ProjectorCalculatorScreenState extends ConsumerState<ProjectorCalculatorS
   }
 
   double? _parse(TextEditingController c) => double.tryParse(c.text.trim());
+
+  // Throw/room fields: displayed in _throwUnit, canonical value is meters.
+  double? _parseThrowMeters(TextEditingController c) {
+    final v = _parse(c);
+    return v == null ? null : _throwUnit.toMeters(v);
+  }
+
+  void _setThrowMeters(TextEditingController c, double meters) {
+    _setText(c, _throwUnit.fromMeters(meters).toStringAsFixed(2));
+  }
+
+  // Screen-size fields: displayed in _sizeUnit, canonical value is inches (what
+  // projector_math.dart's screen functions expect).
+  double? _parseSizeInches(TextEditingController c) {
+    final v = _parse(c);
+    if (v == null) return null;
+    return _sizeUnit.toMeters(v) / 0.0254;
+  }
+
+  void _setSizeInches(TextEditingController c, double inches) {
+    final meters = inches * 0.0254;
+    _setText(c, _sizeUnit.fromMeters(meters).toStringAsFixed(1));
+  }
+
+  // Re-renders every field's displayed text in the newly chosen units without
+  // altering the underlying values — captures canonical meters/inches using the
+  // OLD unit before switching, then reformats using the NEW unit.
+  void _applyUnitChange(DistanceUnit newThrowUnit, DistanceUnit newSizeUnit) {
+    final roomH = _parseThrowMeters(_roomHController);
+    final roomW = _parseThrowMeters(_roomWController);
+    final roomL = _parseThrowMeters(_roomLController);
+    final distance = _parseThrowMeters(_distanceController);
+    final diagonal = _parseSizeInches(_diagonalController);
+    final width = _parseSizeInches(_widthController);
+    final height = _parseSizeInches(_heightController);
+
+    setState(() {
+      _throwUnit = newThrowUnit;
+      _sizeUnit = newSizeUnit;
+    });
+
+    if (roomH != null) _setThrowMeters(_roomHController, roomH);
+    if (roomW != null) _setThrowMeters(_roomWController, roomW);
+    if (roomL != null) _setThrowMeters(_roomLController, roomL);
+    if (distance != null) _setThrowMeters(_distanceController, distance);
+    if (diagonal != null) _setSizeInches(_diagonalController, diagonal);
+    if (width != null) _setSizeInches(_widthController, width);
+    if (height != null) _setSizeInches(_heightController, height);
+    setState(() {});
+  }
+
+  Future<void> _showUnitsDialog() async {
+    var throwUnit = _throwUnit;
+    var sizeUnit = _sizeUnit;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
+          title: const Text('Units'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Throw Distance & Room', style: Theme.of(dialogContext).textTheme.titleSmall),
+                for (final unit in DistanceUnit.values)
+                  RadioListTile<DistanceUnit>(
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(unit.label),
+                    value: unit,
+                    groupValue: throwUnit,
+                    onChanged: (u) => setDialogState(() => throwUnit = u!),
+                  ),
+                const SizedBox(height: 12),
+                Text('Image Size', style: Theme.of(dialogContext).textTheme.titleSmall),
+                for (final unit in DistanceUnit.values)
+                  RadioListTile<DistanceUnit>(
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(unit.label),
+                    value: unit,
+                    groupValue: sizeUnit,
+                    onChanged: (u) => setDialogState(() => sizeUnit = u!),
+                  ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancel')),
+            FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('OK')),
+          ],
+        ),
+      ),
+    );
+
+    if (confirmed == true) _applyUnitChange(throwUnit, sizeUnit);
+  }
 
   ProjectorAspectRatio _ratioFromSpec(String? label) {
     switch (label) {
@@ -107,33 +228,9 @@ class _ProjectorCalculatorScreenState extends ConsumerState<ProjectorCalculatorS
       builder: (context) => DraggableScrollableSheet(
         initialChildSize: 0.7,
         expand: false,
-        builder: (context, scrollController) => ListView.separated(
-          controller: scrollController,
-          padding: const EdgeInsets.all(16),
-          itemCount: products.length,
-          separatorBuilder: (_, _) => const Divider(height: 1),
-          itemBuilder: (context, index) {
-            final product = products[index];
-            final specs = product.specs;
-            final wide = specs?['throwRatioWide'];
-            final tele = specs?['throwRatioTele'];
-            final throwLabel = (wide != null && tele != null)
-                ? (wide == tele ? 'Throw ratio $wide:1' : 'Throw ratio $wide–$tele:1')
-                : null;
-            return ListTile(
-              leading: SizedBox(
-                width: 48,
-                height: 48,
-                child: ProductImage(
-                  imagePath: product.images.isNotEmpty ? product.images.first : null,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-              title: Text(product.name),
-              subtitle: throwLabel != null ? Text(throwLabel) : null,
-              onTap: () => Navigator.of(context).pop(product),
-            );
-          },
+        builder: (context, scrollController) => _ProjectorPickerSheet(
+          products: products,
+          scrollController: scrollController,
         ),
       ),
     );
@@ -155,31 +252,31 @@ class _ProjectorCalculatorScreenState extends ConsumerState<ProjectorCalculatorS
   void _applyScreen(ScreenDimensions screen) {
     if (_updating) return;
     _updating = true;
-    _setText(_diagonalController, screen.diagonalInches.toStringAsFixed(1));
-    _setText(_widthController, screen.widthInches.toStringAsFixed(1));
-    _setText(_heightController, screen.heightInches.toStringAsFixed(1));
+    _setSizeInches(_diagonalController, screen.diagonalInches);
+    _setSizeInches(_widthController, screen.widthInches);
+    _setSizeInches(_heightController, screen.heightInches);
     if (_throwRatioWide > 0) {
       final distance = throwDistanceMeters(screen.widthMeters, _throwRatioWide);
-      _setText(_distanceController, distance.toStringAsFixed(2));
+      _setThrowMeters(_distanceController, distance);
     }
     _updating = false;
     setState(() {});
   }
 
   void _recomputeFromDiagonal() {
-    final diagonal = _parse(_diagonalController);
+    final diagonal = _parseSizeInches(_diagonalController);
     if (diagonal == null || diagonal <= 0) return;
     _applyScreen(screenFromDiagonal(_ratio, diagonal));
   }
 
   void _recomputeFromWidth() {
-    final width = _parse(_widthController);
+    final width = _parseSizeInches(_widthController);
     if (width == null || width <= 0) return;
     _applyScreen(screenFromWidth(_ratio, width));
   }
 
   void _recomputeFromHeight() {
-    final height = _parse(_heightController);
+    final height = _parseSizeInches(_heightController);
     if (height == null || height <= 0) return;
     final diagonal = height * _ratio.diagonalUnits / _ratio.heightUnits;
     _applyScreen(screenFromDiagonal(_ratio, diagonal));
@@ -187,14 +284,14 @@ class _ProjectorCalculatorScreenState extends ConsumerState<ProjectorCalculatorS
 
   void _recomputeFromDistance() {
     if (_updating) return;
-    final distance = _parse(_distanceController);
+    final distance = _parseThrowMeters(_distanceController);
     if (distance == null || distance <= 0 || _throwRatioWide <= 0) return;
     final widthMeters = widthFromThrowDistance(distance, _throwRatioWide);
     _updating = true;
     final screen = screenFromWidth(_ratio, widthMeters / 0.0254);
-    _setText(_diagonalController, screen.diagonalInches.toStringAsFixed(1));
-    _setText(_widthController, screen.widthInches.toStringAsFixed(1));
-    _setText(_heightController, screen.heightInches.toStringAsFixed(1));
+    _setSizeInches(_diagonalController, screen.diagonalInches);
+    _setSizeInches(_widthController, screen.widthInches);
+    _setSizeInches(_heightController, screen.heightInches);
     _updating = false;
     setState(() {});
   }
@@ -202,7 +299,16 @@ class _ProjectorCalculatorScreenState extends ConsumerState<ProjectorCalculatorS
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Projector Calculator')),
+      appBar: AppBar(
+        title: const Text('Projector Calculator'),
+        actions: [
+          TextButton.icon(
+            onPressed: _showUnitsDialog,
+            icon: const Icon(Icons.straighten),
+            label: const Text('Units'),
+          ),
+        ],
+      ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -216,7 +322,7 @@ class _ProjectorCalculatorScreenState extends ConsumerState<ProjectorCalculatorS
             onSelectionChanged: (s) => setState(() => _installationType = s.first),
           ),
           const SizedBox(height: 24),
-          _sectionLabel('Room Dimension (meters)'),
+          _sectionLabel('Room Dimension (${_throwUnit.abbr})'),
           Row(
             children: [
               Expanded(child: _numberField(_roomHController, 'Height', onChanged: (_) => setState(() {}))),
@@ -232,14 +338,7 @@ class _ProjectorCalculatorScreenState extends ConsumerState<ProjectorCalculatorS
             Card(
               margin: const EdgeInsets.only(bottom: 12),
               child: ListTile(
-                leading: SizedBox(
-                  width: 40,
-                  height: 40,
-                  child: ProductImage(
-                    imagePath: _selectedProjector!.images.isNotEmpty ? _selectedProjector!.images.first : null,
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                ),
+                leading: const Icon(Icons.videocam_outlined),
                 title: Text(_selectedProjector!.name),
                 subtitle: const Text('Specs applied below — edit any field to override.'),
                 trailing: IconButton(
@@ -293,7 +392,7 @@ class _ProjectorCalculatorScreenState extends ConsumerState<ProjectorCalculatorS
             style: Theme.of(context).textTheme.bodySmall,
           ),
           const SizedBox(height: 24),
-          _sectionLabel('Screen Size (inches)'),
+          _sectionLabel('Screen Size (${_sizeUnit.abbr})'),
           Text(
             'Edit any one of diagonal, width, or height — the others update automatically.',
             style: Theme.of(context).textTheme.bodySmall,
@@ -317,7 +416,7 @@ class _ProjectorCalculatorScreenState extends ConsumerState<ProjectorCalculatorS
           const SizedBox(height: 8),
           _numberField(
             _distanceController,
-            'Distance (meters)',
+            'Distance (${_throwUnit.abbr})',
             onChanged: (_) => _recomputeFromDistance(),
           ),
           const SizedBox(height: 24),
@@ -344,8 +443,8 @@ class _ProjectorCalculatorScreenState extends ConsumerState<ProjectorCalculatorS
   }
 
   Widget _buildDiagram() {
-    final distance = _parse(_distanceController);
-    final heightIn = _parse(_heightController);
+    final distance = _parseThrowMeters(_distanceController);
+    final heightIn = _parseSizeInches(_heightController);
     if (distance == null || distance <= 0 || heightIn == null || heightIn <= 0) {
       return const SizedBox.shrink();
     }
@@ -353,26 +452,29 @@ class _ProjectorCalculatorScreenState extends ConsumerState<ProjectorCalculatorS
       installationType: _installationType,
       throwDistanceMeters: distance,
       screenHeightMeters: heightIn * 0.0254,
-      roomLengthMeters: _parse(_roomLController),
-      roomHeightMeters: _parse(_roomHController),
+      roomLengthMeters: _parseThrowMeters(_roomLController),
+      roomHeightMeters: _parseThrowMeters(_roomHController),
     );
   }
 
   Widget _buildSummary() {
     final rows = <String>[];
 
-    final diagonal = _parse(_diagonalController);
-    final distance = _parse(_distanceController);
-    final roomL = _parse(_roomLController);
-    final roomW = _parse(_roomWController);
-    final roomH = _parse(_roomHController);
-    final widthIn = _parse(_widthController);
-    final heightIn = _parse(_heightController);
+    final diagonal = _parseSizeInches(_diagonalController);
+    final distance = _parseThrowMeters(_distanceController);
+    final roomL = _parseThrowMeters(_roomLController);
+    final roomW = _parseThrowMeters(_roomWController);
+    final roomH = _parseThrowMeters(_roomHController);
+    final widthIn = _parseSizeInches(_widthController);
+    final heightIn = _parseSizeInches(_heightController);
     final throwRatioTele = _parse(_throwRatioTeleController);
 
     if (diagonal != null && distance != null) {
+      final diagonalDisplay = _sizeUnit.fromMeters(diagonal * 0.0254);
+      final distanceDisplay = _throwUnit.fromMeters(distance);
       rows.add(
-        '${diagonal.toStringAsFixed(0)}" ${_ratio.label} screen at ${distance.toStringAsFixed(2)} m throw distance.',
+        '${diagonalDisplay.toStringAsFixed(1)} ${_sizeUnit.abbr} ${_ratio.label} screen at '
+        '${distanceDisplay.toStringAsFixed(2)} ${_throwUnit.abbr} throw distance.',
       );
     }
 
@@ -383,10 +485,21 @@ class _ProjectorCalculatorScreenState extends ConsumerState<ProjectorCalculatorS
         throwRatioWide: _throwRatioWide,
         throwRatioTele: throwRatioTele,
       );
-      rows.add(
-        'With this zoom lens, ${range.minMeters.toStringAsFixed(2)}–${range.maxMeters.toStringAsFixed(2)} m '
-        'all work for this screen size.',
+      // Recommended = mid-zoom position (average of the wide/tele throw ratios), not
+      // just the midpoint of the two distances — matches how a zoom lens is actually
+      // driven, and keeps the value meaningful when the ratio-to-distance relationship
+      // is non-linear across the zoom range.
+      final midRatio = (_throwRatioWide + throwRatioTele) / 2;
+      final recommendedMeters = throwDistanceMeters(
+        screenFromDiagonal(_ratio, diagonal).widthMeters,
+        midRatio,
       );
+      final shortest = _throwUnit.fromMeters(range.minMeters);
+      final recommended = _throwUnit.fromMeters(recommendedMeters);
+      final longest = _throwUnit.fromMeters(range.maxMeters);
+      rows.add('Shortest distance (full wide zoom): ${shortest.toStringAsFixed(2)} ${_throwUnit.abbr}');
+      rows.add('Recommended distance (mid zoom): ${recommended.toStringAsFixed(2)} ${_throwUnit.abbr}');
+      rows.add('Longest distance (full tele zoom): ${longest.toStringAsFixed(2)} ${_throwUnit.abbr}');
     }
 
     rows.add(
@@ -398,19 +511,26 @@ class _ProjectorCalculatorScreenState extends ConsumerState<ProjectorCalculatorS
     final warnings = <String>[];
     if (distance != null && roomL != null && roomL > 0 && distance > roomL) {
       warnings.add(
-        'Throw distance (${distance.toStringAsFixed(2)} m) exceeds room length (${roomL.toStringAsFixed(2)} m).',
+        'Throw distance (${_throwUnit.fromMeters(distance).toStringAsFixed(2)} ${_throwUnit.abbr}) exceeds '
+        'room length (${_throwUnit.fromMeters(roomL).toStringAsFixed(2)} ${_throwUnit.abbr}).',
       );
     }
     if (widthIn != null && roomW != null && roomW > 0) {
       final widthM = widthIn * 0.0254;
       if (widthM > roomW) {
-        warnings.add('Screen width (${widthM.toStringAsFixed(2)} m) exceeds room width (${roomW.toStringAsFixed(2)} m).');
+        warnings.add(
+          'Screen width (${_throwUnit.fromMeters(widthM).toStringAsFixed(2)} ${_throwUnit.abbr}) exceeds '
+          'room width (${_throwUnit.fromMeters(roomW).toStringAsFixed(2)} ${_throwUnit.abbr}).',
+        );
       }
     }
     if (heightIn != null && roomH != null && roomH > 0) {
       final heightM = heightIn * 0.0254;
       if (heightM > roomH) {
-        warnings.add('Screen height (${heightM.toStringAsFixed(2)} m) exceeds room height (${roomH.toStringAsFixed(2)} m).');
+        warnings.add(
+          'Screen height (${_throwUnit.fromMeters(heightM).toStringAsFixed(2)} ${_throwUnit.abbr}) exceeds '
+          'room height (${_throwUnit.fromMeters(roomH).toStringAsFixed(2)} ${_throwUnit.abbr}).',
+        );
       }
     }
 
@@ -438,6 +558,91 @@ class _ProjectorCalculatorScreenState extends ConsumerState<ProjectorCalculatorS
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Model picker for the calculator — name-only (no product photos) with a search
+/// field, since with 300+ projectors in the catalog a flat scroll isn't usable.
+class _ProjectorPickerSheet extends StatefulWidget {
+  const _ProjectorPickerSheet({required this.products, required this.scrollController});
+
+  final List<Product> products;
+  final ScrollController scrollController;
+
+  @override
+  State<_ProjectorPickerSheet> createState() => _ProjectorPickerSheetState();
+}
+
+class _ProjectorPickerSheetState extends State<_ProjectorPickerSheet> {
+  final _searchController = TextEditingController();
+  String _query = '';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  static String? _throwLabel(Product product) {
+    final specs = product.specs;
+    final wide = specs?['throwRatioWide'];
+    final tele = specs?['throwRatioTele'];
+    if (wide == null || tele == null) return null;
+    return wide == tele ? 'Throw ratio $wide:1' : 'Throw ratio $wide–$tele:1';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final query = _query.trim().toLowerCase();
+    final filtered = query.isEmpty
+        ? widget.products
+        : widget.products.where((p) => p.name.toLowerCase().contains(query)).toList();
+
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+          child: TextField(
+            controller: _searchController,
+            autofocus: true,
+            decoration: InputDecoration(
+              hintText: 'Search projectors by name',
+              prefixIcon: const Icon(Icons.search),
+              suffixIcon: _query.isEmpty
+                  ? null
+                  : IconButton(
+                      icon: const Icon(Icons.clear),
+                      onPressed: () {
+                        _searchController.clear();
+                        setState(() => _query = '');
+                      },
+                    ),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            onChanged: (value) => setState(() => _query = value),
+          ),
+        ),
+        Expanded(
+          child: filtered.isEmpty
+              ? const Center(child: Text('No projectors match your search.'))
+              : ListView.separated(
+                  controller: widget.scrollController,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  itemCount: filtered.length,
+                  separatorBuilder: (_, _) => const Divider(height: 1),
+                  itemBuilder: (context, index) {
+                    final product = filtered[index];
+                    final throwLabel = _throwLabel(product);
+                    return ListTile(
+                      title: Text(product.name),
+                      subtitle: throwLabel != null ? Text(throwLabel) : null,
+                      onTap: () => Navigator.of(context).pop(product),
+                    );
+                  },
+                ),
+        ),
+      ],
     );
   }
 }
