@@ -51,6 +51,7 @@ final router = GoRouter(
                 builder: (context, state) => ProductListScreen(
                   categoryId: state.uri.queryParameters['categoryId'],
                   categoryName: state.uri.queryParameters['categoryName'],
+                  categorySlug: state.uri.queryParameters['categorySlug'],
                 ),
               ),
               GoRoute(
