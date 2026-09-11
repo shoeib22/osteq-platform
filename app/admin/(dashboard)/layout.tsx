@@ -6,7 +6,12 @@ import { logoutAction } from "./actions";
 export default async function AdminDashboardLayout({ children }: { children: React.ReactNode }) {
   try {
     await requireStaffAccess();
-  } catch {
+  } catch (err) {
+    // Log why, not just that — a bare catch here previously made "valid session, no staff
+    // row" indistinguishable from "no session at all" from the outside: both just bounced
+    // to /admin/login with zero trace, which looked identical to an actual redirect loop
+    // when the session WAS valid (middleware kept sending it back to /admin each time).
+    console.error("[admin layout] requireStaffAccess failed:", err);
     redirect("/admin/login");
   }
 
