@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../auth/auth_provider.dart';
+import '../../core/push_provider.dart';
 
 class AppShell extends ConsumerWidget {
   const AppShell({super.key, required this.navigationShell});
@@ -14,6 +15,7 @@ class AppShell extends ConsumerWidget {
     // than waiting for the user to happen to open the Account tab — the cart/checkout API
     // requires that row to already exist, and this shell is mounted for every tab.
     ref.watch(customerProfileProvider);
+    ref.watch(pushRegistrationProvider);
 
     return Scaffold(
       body: navigationShell,
