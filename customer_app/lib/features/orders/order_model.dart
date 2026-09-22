@@ -36,6 +36,8 @@ class Order {
   final String status;
   final String shippingAddress;
   final String? trackingNumber;
+  final String? trackingUrl;
+  final bool hasInvoicePdf;
   final double totalInRupees;
   final DateTime createdAt;
   final List<OrderItem> items;
@@ -46,6 +48,8 @@ class Order {
     required this.status,
     required this.shippingAddress,
     this.trackingNumber,
+    this.trackingUrl,
+    required this.hasInvoicePdf,
     required this.totalInRupees,
     required this.createdAt,
     required this.items,
@@ -59,6 +63,8 @@ class Order {
       status: json['status'] as String,
       shippingAddress: json['shippingAddress'] as String,
       trackingNumber: json['trackingNumber'] as String?,
+      trackingUrl: json['trackingUrl'] as String?,
+      hasInvoicePdf: json['hasInvoicePdf'] as bool? ?? false,
       totalInRupees: (json['totalInRupees'] as num).toDouble(),
       createdAt: DateTime.parse(json['createdAt'] as String),
       items: (json['items'] as List)

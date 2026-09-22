@@ -35,6 +35,15 @@ class OrdersRepository {
       throwApiException(e);
     }
   }
+
+  Future<String> fetchInvoiceDownloadUrl(String orderId) async {
+    try {
+      final res = await _dio.get('/api/osteq/orders/$orderId/invoice-download');
+      return res.data['url'] as String;
+    } on DioException catch (e) {
+      throwApiException(e);
+    }
+  }
 }
 
 final ordersRepositoryProvider = Provider<OrdersRepository>((ref) {
