@@ -33,3 +33,16 @@ export function serializeDecimals<T>(value: T): T {
   }
   return value;
 }
+
+/**
+ * The client only ever needs to know whether an invoice PDF exists, never the raw
+ * storage path (access always goes through the signed-URL endpoint) — this mirrors the
+ * "store the relative path, never a URL" convention by keeping the path itself entirely
+ * server-side too.
+ */
+export function withInvoiceFlag<T extends { invoicePdfPath?: string | null }>(
+  order: T,
+): Omit<T, "invoicePdfPath"> & { hasInvoicePdf: boolean } {
+  const { invoicePdfPath, ...rest } = order;
+  return { ...rest, hasInvoicePdf: invoicePdfPath != null };
+}

@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireOsteqCustomerAccess } from "@/lib/osteq/auth";
 import { requireStaffAccess } from "@/lib/auth";
-import { serializeDecimals } from "@/lib/osteq/serialize";
+import { serializeDecimals, withInvoiceFlag } from "@/lib/osteq/serialize";
 
 export async function GET(request: NextRequest) {
   let customerId: string | null = null;
@@ -24,5 +24,5 @@ export async function GET(request: NextRequest) {
     orderBy: { createdAt: "desc" },
   });
 
-  return NextResponse.json(serializeDecimals({ orders }));
+  return NextResponse.json(serializeDecimals({ orders: orders.map(withInvoiceFlag) }));
 }
