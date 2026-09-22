@@ -9,7 +9,11 @@ function parseTrackingUrl(value: unknown): string | null | undefined {
   if (value === null || value === "") return null;
   if (typeof value !== "string") return undefined;
   try {
-    new URL(value);
+    const url = new URL(value);
+    // Reject javascript:/data:/etc — this value is later loaded directly in the Flutter
+    // app's WebView (and would be rendered as a link in the admin panel), so only the
+    // schemes a tracking link could legitimately use are allowed.
+    if (url.protocol !== "http:" && url.protocol !== "https:") return undefined;
     return value;
   } catch {
     return undefined;
