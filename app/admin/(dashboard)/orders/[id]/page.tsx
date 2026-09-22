@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { StatusForm } from "./StatusForm";
+import { InvoicePdfForm } from "./InvoicePdfForm";
 
 export default async function OrderDetailPage({ params }: { params: { id: string } }) {
   const order = await prisma.osteqOrder.findUnique({
@@ -34,6 +35,7 @@ export default async function OrderDetailPage({ params }: { params: { id: string
 
       <h2 className="mb-2 font-medium">Status</h2>
       <StatusForm order={order} />
+      <InvoicePdfForm orderId={order.id} hasInvoicePdf={order.invoicePdfPath != null} />
     </div>
   );
 }
