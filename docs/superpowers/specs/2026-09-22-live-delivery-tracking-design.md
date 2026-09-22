@@ -1,10 +1,13 @@
-# Live delivery tracking (Rapido/Porter link) + out-for-delivery push notification
+# Live delivery tracking (Rapido/Porter link) + out-for-delivery push notification + invoice PDF upload
 
 ## Problem
 
 Osteq orders are last-mile delivered locally via Rapido/Porter. Staff currently have no way
 to share the courier's live tracking link with the customer, and customers get no signal
 that a courier has actually been dispatched — only a generic "order status changed" email.
+Separately, the app's only invoice is a rendered-from-data view; staff have no way to attach
+the real invoice document (e.g. a GST invoice from their accounting software) for the
+customer to download.
 
 ## Goals
 
@@ -12,6 +15,8 @@ that a courier has actually been dispatched — only a generic "order status cha
 - Customers can view that link's live tracking *inside* the app (an embedded viewport,
   not a browser hand-off).
 - Customers get a real push notification the moment the order goes out for delivery.
+- Staff can upload a PDF invoice per order; once uploaded, it replaces the auto-rendered
+  invoice view for that order, and the customer can download it.
 
 ## Non-goals
 
@@ -19,6 +24,8 @@ that a courier has actually been dispatched — only a generic "order status cha
 - Parsing/validating that a URL actually belongs to Rapido or Porter — any URL is accepted.
 - A generic notification system for other events (this wires push into the existing
   status-change path only, for the `OUT_FOR_DELIVERY` transition).
+- Generating PDFs server-side — staff upload an already-produced PDF file.
+- Editing/replacing history — a re-upload simply overwrites the previous PDF for that order.
 
 ## Data model (`prisma/schema.prisma`)
 
@@ -27,6 +34,10 @@ that a courier has actually been dispatched — only a generic "order status cha
   status value, just relabeled — no backfill needed since Prisma enum renames are a rename
   of the underlying Postgres enum label.
 - `OsteqCustomerProfile.fcmToken String?` — new column, latest FCM device token.
+- `OsteqOrder.invoicePdfPath String?` — new column, the relative Supabase Storage path to
+  the uploaded invoice PDF (same "store the relative path, not a full URL" convention as
+  `OsteqProduct.images`, since the admin panel and the Flutter app resolve storage URLs
+  against different base URLs).
 
 ## Backend (`app/api/osteq/**`, `lib/osteq/**`)
 
@@ -63,13 +74,43 @@ that a courier has actually been dispatched — only a generic "order status cha
   deep-linking. If no `fcmToken` is on file, skip silently (no error, no email substitute —
   the email already went out above).
 
-## Admin UI (`app/admin/(dashboard)/orders/[id]/StatusForm.tsx`, `actions.ts`)
+### `POST /api/osteq/orders/[id]/invoice-pdf` and `DELETE /api/osteq/orders/[id]/invoice-pdf`
+
+- Same shape as `app/api/osteq/products/[id]/images/route.ts`: `requireStaffAccess()`,
+  multipart `formData` with a `file` field.
+- Validation: `file.type === "application/pdf"` only, max 20MB.
+- Bucket: new **private** Supabase Storage bucket `order-invoices` (unlike
+  `product-images`, this must not be publicly readable — it's a customer's billing
+  document). Uploaded to a fixed path `${order.id}/invoice.pdf` with `upsert: true`, so a
+  re-upload simply overwrites — no history, no orphaned old files.
+- On success, `POST` sets `OsteqOrder.invoicePdfPath` to that path; `DELETE` removes the
+  storage object and clears the column back to `null`.
+
+### `GET /api/osteq/orders/[id]/invoice-download`
+
+- New route, customer-facing. `requireOsteqCustomerAccess()`, then confirms the order
+  belongs to that customer and has a non-null `invoicePdfPath` (404 otherwise).
+- Generates a short-lived signed URL via `createAdminClient().storage.from("order-invoices")
+  .createSignedUrl(path, 60)` and returns `{ url }`. The client fetches this fresh each time
+  it wants to download — no signed URL is ever cached or stored, since it expires in 60s.
+
+## Admin UI (`app/admin/(dashboard)/orders/[id]/StatusForm.tsx`, `actions.ts`, `page.tsx`)
 
 - Status `<select>` options: replace `"SHIPPED"` with `"OUT_FOR_DELIVERY"`.
 - Add a second text input for `trackingUrl` next to the existing `trackingNumber` input,
   same styling, same clear-on-empty-string convention.
 - `actions.ts`'s `updateOrderStatus` passes `trackingUrl` through to the PATCH body
   alongside `trackingNumber`.
+- Order detail page (`page.tsx`): add an `InvoicePdfForm` client component below the
+  existing `StatusForm`, following the same file-input pattern as the product image
+  uploader — a file picker + submit button that posts to `invoice-pdf`, plus a "Remove"
+  button when `order.invoicePdfPath` is already set. Shows the current filename/status
+  ("Invoice PDF uploaded" / "No invoice PDF uploaded yet").
+- Invoice print page (`orders/[id]/invoice/page.tsx`): when `order.invoicePdfPath` is set,
+  replace the rendered invoice body with a direct link to view the uploaded PDF (signed URL
+  generated server-side at page render, since this is already a server component with
+  admin-level Supabase access) instead of the print-formatted HTML. When unset, behavior is
+  unchanged from today.
 
 ## Flutter customer app (`customer_app/`)
 
@@ -77,6 +118,9 @@ that a courier has actually been dispatched — only a generic "order status cha
 
 - `firebase_core`, `firebase_messaging` — push.
 - `webview_flutter` — in-app tracking viewport.
+- `url_launcher` — opens the signed invoice PDF URL in the system browser/PDF viewer,
+  which is what actually gives the user a "download" (save/share) affordance without this
+  app needing its own PDF renderer or file-download/permission handling.
 - Requires creating a Firebase project (free tier, messaging only) and adding
   `google-services.json` (Android) / `GoogleService-Info.plist` (iOS) to the app. Firebase
   is used purely as the push delivery pipe; the trigger stays on the existing VPS backend
@@ -113,6 +157,13 @@ that a courier has actually been dispatched — only a generic "order status cha
   ("Live tracking") and a `WebViewWidget` that loads `trackingUrl` directly via
   `WebViewController().loadRequest(Uri.parse(url))` — renders exactly what the link shows
   in a browser, embedded in-app.
+- `order_model.dart`: add `final bool hasInvoicePdf;` (derived server-side from
+  `invoicePdfPath != null` — the client only ever needs the boolean, never the raw storage
+  path, since access always goes through the signed-URL endpoint).
+- `invoice_screen.dart`: when `order.hasInvoicePdf` is true, replace the entire rendered
+  `_InvoiceBody` with a centered "Download invoice PDF" button. Tapping it calls
+  `GET /api/osteq/orders/[id]/invoice-download`, then `launchUrl` on the returned signed
+  URL. When false, behavior is unchanged — the existing rendered invoice shows as today.
 
 ## Error handling
 
@@ -123,6 +174,12 @@ that a courier has actually been dispatched — only a generic "order status cha
 - No `fcmToken` on the customer profile → push silently skipped; email still sends.
 - WebView load failure (bad/expired tracking link) → rely on `webview_flutter`'s default
   error page; no custom retry UI in this pass.
+- Non-PDF or oversized file on `invoice-pdf` upload → 400, admin form shows the error
+  inline (same pattern as the product image uploader).
+- Customer requests `invoice-download` for an order with no PDF, or one that isn't theirs
+  → 404 (indistinguishable from each other, so ownership isn't leaked).
+- Signed URL expires (60s) before the user acts on it → `launchUrl` gets a 403 from Supabase
+  Storage; the "Download invoice PDF" button can simply be tapped again to fetch a fresh one.
 
 ## Testing
 
@@ -134,3 +191,7 @@ that a courier has actually been dispatched — only a generic "order status cha
   that tapping it opens that order's detail screen.
 - Flutter: existing widget-test patterns for `order_detail_screen.dart` extended to cover
   the tracking-button visibility condition.
+- Invoice PDF: manual check — upload a PDF via the admin order detail page, confirm the
+  admin invoice page now links to it instead of rendering HTML, confirm the customer app's
+  invoice screen shows the download button and that tapping it opens the PDF, and confirm
+  "Remove" clears `invoicePdfPath` and reverts both views to the rendered invoice.
