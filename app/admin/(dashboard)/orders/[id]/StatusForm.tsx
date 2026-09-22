@@ -5,7 +5,7 @@ import type { OsteqOrder } from "@prisma/client";
 import { updateOrderStatus } from "./actions";
 import { SubmitButton } from "../../SubmitButton";
 
-const STATUSES = ["PROCESSING", "SHIPPED", "DELIVERED", "CANCELLED"];
+const STATUSES = ["PROCESSING", "OUT_FOR_DELIVERY", "DELIVERED", "CANCELLED"];
 
 export function StatusForm({ order }: { order: OsteqOrder }) {
   const [error, setError] = useState<string | undefined>();
@@ -37,6 +37,12 @@ export function StatusForm({ order }: { order: OsteqOrder }) {
         name="trackingNumber"
         defaultValue={order.trackingNumber ?? ""}
         placeholder="Tracking number"
+        className="rounded border px-2 py-1 text-sm"
+      />
+      <input
+        name="trackingUrl"
+        defaultValue={order.trackingUrl ?? ""}
+        placeholder="Tracking link (Rapido/Porter)"
         className="rounded border px-2 py-1 text-sm"
       />
       <SubmitButton pending={isPending} className="rounded bg-black px-3 py-1 text-sm text-white disabled:opacity-50">
