@@ -72,7 +72,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     },
   });
 
-  notifyOrderStatusChange(order);
+  notifyOrderStatusChange(order, existing.status);
 
   return NextResponse.json({ order });
 }

@@ -1,4 +1,4 @@
-import type { OsteqOrder, OsteqQuote, OsteqTradeApplication } from "@prisma/client";
+import type { OsteqOrder, OsteqOrderStatus, OsteqQuote, OsteqTradeApplication } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { initializeApp, cert, getApps, type App } from "firebase-admin/app";
 import { getMessaging } from "firebase-admin/messaging";
@@ -46,12 +46,12 @@ async function sendPush(
   body: string,
   data: Record<string, string>,
 ): Promise<void> {
-  const app = firebaseApp();
-  if (!app) {
-    console.log(`[osteq notification] No FIREBASE_SERVICE_ACCOUNT_JSON configured. Push skipped: ${title}`);
-    return;
-  }
   try {
+    const app = firebaseApp();
+    if (!app) {
+      console.log(`[osteq notification] No FIREBASE_SERVICE_ACCOUNT_JSON configured. Push skipped: ${title}`);
+      return;
+    }
     await getMessaging(app).send({ token: fcmToken, notification: { title, body }, data });
   } catch (err) {
     console.error("Osteq push notification failed:", err);
@@ -86,13 +86,13 @@ export async function notifyQuoteReady(quote: OsteqQuote): Promise<void> {
   }
 }
 
-export async function notifyOrderStatusChange(order: OsteqOrder): Promise<void> {
+export async function notifyOrderStatusChange(order: OsteqOrder, previousStatus: OsteqOrderStatus): Promise<void> {
   try {
     const customer = await prisma.osteqCustomerProfile.findUnique({ where: { id: order.customerId } });
     if (!customer) return;
     await sendEmail(customer.email, "Your Osteq order status changed", `Order ${order.id} is now ${order.status}.`);
 
-    if (order.status === "OUT_FOR_DELIVERY" && customer.fcmToken) {
+    if (previousStatus !== "OUT_FOR_DELIVERY" && order.status === "OUT_FOR_DELIVERY" && customer.fcmToken) {
       await sendPush(
         customer.fcmToken,
         "Your order is out for delivery",
