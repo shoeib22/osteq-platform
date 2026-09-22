@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireStaffAccess } from "@/lib/auth";
 import { notifyOrderStatusChange } from "@/lib/osteq/notifications";
 
-const VALID_STATUSES = new Set(["PROCESSING", "OUT_FOR_DELIVERY", "DELIVERED", "CANCELLED"]);
+const VALID_STATUSES = new Set(["PROCESSING", "SHIPPED", "DELIVERED", "CANCELLED"]);
 
 export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
   try {
@@ -31,7 +31,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
 
   const order = await prisma.osteqOrder.update({
     where: { id: params.id },
-    data: { status: status as "PROCESSING" | "OUT_FOR_DELIVERY" | "DELIVERED" | "CANCELLED", trackingNumber },
+    data: { status: status as "PROCESSING" | "SHIPPED" | "DELIVERED" | "CANCELLED", trackingNumber },
   });
 
   notifyOrderStatusChange(order);
