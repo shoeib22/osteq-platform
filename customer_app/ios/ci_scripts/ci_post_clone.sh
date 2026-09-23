@@ -17,17 +17,28 @@ flutter pub get
 # API_BASE_URL, SUPABASE_URL, SUPABASE_ANON_KEY must be set as Environment
 # Variables on the Xcode Cloud workflow (App Store Connect > Xcode Cloud >
 # this workflow > Environment) so they never live in the repo.
-flutter build ios --release --no-codesign --config-only \
-  --dart-define=API_BASE_URL="$API_BASE_URL" \
-  --dart-define=SUPABASE_URL="$SUPABASE_URL" \
-  --dart-define=SUPABASE_ANON_KEY="$SUPABASE_ANON_KEY"
+config_only_build() {
+  flutter build ios --release --no-codesign --config-only \
+    --dart-define=API_BASE_URL="$API_BASE_URL" \
+    --dart-define=SUPABASE_URL="$SUPABASE_URL" \
+    --dart-define=SUPABASE_ANON_KEY="$SUPABASE_ANON_KEY"
+}
 
-# Xcode Cloud's archive action won't resolve Swift Package dependencies itself —
-# it requires a Package.resolved already on disk. Resolve here, on the CI
-# runner, so newly added SPM-based plugins (e.g. firebase_core) don't need a
-# Package.resolved committed to the repo.
+# Xcode Cloud disables automatic Swift Package resolution for every xcodebuild
+# invocation, including the one `flutter build ios` runs internally — so the
+# very first build here is expected to fail with "a resolved file is
+# required..." the first time a new SPM-based plugin (e.g. firebase_core) is
+# added, because that's also the step that makes Flutter register the
+# package reference in Runner.xcodeproj in the first place. Let it fail,
+# resolve explicitly now that the reference exists, then build again — this
+# two-pass pattern is the standard workaround for Xcode Cloud + Flutter SPM
+# plugins (see flutter/flutter and firebase/flutterfire issue trackers).
+config_only_build || true
+
 xcodebuild -resolvePackageDependencies \
   -workspace ios/Runner.xcworkspace \
   -scheme Runner
+
+config_only_build
 
 exit 0
