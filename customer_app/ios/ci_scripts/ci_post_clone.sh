@@ -22,4 +22,12 @@ flutter build ios --release --no-codesign --config-only \
   --dart-define=SUPABASE_URL="$SUPABASE_URL" \
   --dart-define=SUPABASE_ANON_KEY="$SUPABASE_ANON_KEY"
 
+# Xcode Cloud's archive action won't resolve Swift Package dependencies itself —
+# it requires a Package.resolved already on disk. Resolve here, on the CI
+# runner, so newly added SPM-based plugins (e.g. firebase_core) don't need a
+# Package.resolved committed to the repo.
+xcodebuild -resolvePackageDependencies \
+  -workspace ios/Runner.xcworkspace \
+  -scheme Runner
+
 exit 0
