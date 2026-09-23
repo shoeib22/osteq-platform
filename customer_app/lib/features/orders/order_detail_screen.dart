@@ -30,6 +30,19 @@ class OrderDetailScreen extends ConsumerWidget {
             Text('Status: ${order.status}'),
             Text('Shipping to: ${order.shippingAddress}'),
             if (order.trackingNumber != null) Text('Tracking: ${order.trackingNumber}'),
+            if (order.status == 'OUT_FOR_DELIVERY' && order.trackingUrl != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: FilledButton.icon(
+                  onPressed: () => context.pushNamed(
+                    'orderTracking',
+                    pathParameters: {'id': orderId},
+                    extra: order.trackingUrl,
+                  ),
+                  icon: const Icon(Icons.local_shipping_outlined),
+                  label: const Text('Track live location'),
+                ),
+              ),
             const Divider(height: 32),
             ...order.items.map((item) => ListTile(
                   title: Text(item.productName ?? item.sku ?? 'Variant ${item.variantId.substring(0, 8)}'),

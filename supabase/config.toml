@@ -125,6 +125,14 @@ public = true
 file_size_limit = "10MiB"
 allowed_mime_types = ["image/png", "image/jpeg", "image/webp"]
 
+# Private bucket for staff-uploaded invoice PDFs — access only via short-lived signed URLs
+# (app/api/osteq/orders/[id]/invoice-download), since these are a customer's billing
+# documents and must not be publicly readable like product-images.
+[storage.buckets.order-invoices]
+public = false
+file_size_limit = "20MiB"
+allowed_mime_types = ["application/pdf"]
+
 # Allow connections via S3 compatible clients
 [storage.s3_protocol]
 enabled = true

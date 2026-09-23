@@ -16,6 +16,7 @@ import '../features/orders/order_confirmation_screen.dart';
 import '../features/orders/order_history_screen.dart';
 import '../features/orders/order_detail_screen.dart';
 import '../features/orders/invoice_screen.dart';
+import '../features/orders/tracking_webview_screen.dart';
 import '../features/shell/app_shell.dart';
 import '../features/trade/trade_application_screen.dart';
 import '../features/addresses/addresses_screen.dart';
@@ -127,6 +128,11 @@ final router = GoRouter(
                     path: 'invoice',
                     name: 'orderInvoice',
                     builder: (context, state) => InvoiceScreen(orderId: state.pathParameters['id']!),
+                  ),
+                  GoRoute(
+                    path: 'tracking',
+                    name: 'orderTracking',
+                    builder: (context, state) => TrackingWebViewScreen(url: state.extra as String),
                   ),
                 ],
               ),

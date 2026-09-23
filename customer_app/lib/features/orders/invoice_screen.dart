@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../../core/api_exception.dart';
 import 'order_model.dart';
 import 'orders_provider.dart';
+import 'orders_repository.dart';
 
 class InvoiceScreen extends ConsumerWidget {
   const InvoiceScreen({super.key, required this.orderId});
@@ -15,9 +18,63 @@ class InvoiceScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Invoice')),
       body: orderAsync.when(
-        data: (order) => _InvoiceBody(order: order),
+        data: (order) =>
+            order.hasInvoicePdf ? _InvoicePdfDownload(orderId: orderId) : _InvoiceBody(order: order),
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, stack) => Center(child: Text('Failed to load invoice: $error')),
+      ),
+    );
+  }
+}
+
+class _InvoicePdfDownload extends ConsumerStatefulWidget {
+  const _InvoicePdfDownload({required this.orderId});
+
+  final String orderId;
+
+  @override
+  ConsumerState<_InvoicePdfDownload> createState() => _InvoicePdfDownloadState();
+}
+
+class _InvoicePdfDownloadState extends ConsumerState<_InvoicePdfDownload> {
+  bool _loading = false;
+  String? _error;
+
+  Future<void> _download() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final url = await ref.read(ordersRepositoryProvider).fetchInvoiceDownloadUrl(widget.orderId);
+      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+    } on ApiException catch (e) {
+      if (mounted) setState(() => _error = e.message);
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.picture_as_pdf_outlined, size: 48),
+          const SizedBox(height: 12),
+          FilledButton.icon(
+            onPressed: _loading ? null : _download,
+            icon: _loading
+                ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                : const Icon(Icons.download_outlined),
+            label: const Text('Download invoice PDF'),
+          ),
+          if (_error != null) ...[
+            const SizedBox(height: 8),
+            Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+          ],
+        ],
       ),
     );
   }

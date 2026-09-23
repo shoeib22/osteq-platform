@@ -49,6 +49,7 @@ model OsteqCustomerProfile {
   businessName String?
   businessType String?
   phone        String?
+  fcmToken     String?
   accountStatus OsteqAccountStatus @default(PENDING)
   createdAt    DateTime           @default(now())
 
@@ -189,7 +190,7 @@ model OsteqCartItem {
 
 enum OsteqOrderStatus {
   PROCESSING
-  SHIPPED
+  OUT_FOR_DELIVERY
   DELIVERED
   CANCELLED
 }
@@ -200,6 +201,8 @@ model OsteqOrder {
   status           OsteqOrderStatus @default(PROCESSING)
   shippingAddress  String
   trackingNumber   String?
+  trackingUrl      String?
+  invoicePdfPath   String?
   totalInRupees    Decimal          @db.Decimal(10, 2)
   createdAt        DateTime         @default(now())
 

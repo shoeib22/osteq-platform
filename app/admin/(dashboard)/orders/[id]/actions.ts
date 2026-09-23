@@ -7,10 +7,15 @@ export async function updateOrderStatus(formData: FormData): Promise<{ error?: s
   const orderId = String(formData.get("orderId") ?? "");
   const status = String(formData.get("status") ?? "");
   const trackingNumber = String(formData.get("trackingNumber") ?? "");
+  const trackingUrl = String(formData.get("trackingUrl") ?? "");
 
   const { error } = await adminApiFetch(`/api/osteq/orders/${orderId}/status`, {
     method: "PATCH",
-    body: { status, trackingNumber: trackingNumber.trim() === "" ? null : trackingNumber.trim() },
+    body: {
+      status,
+      trackingNumber: trackingNumber.trim() === "" ? null : trackingNumber.trim(),
+      trackingUrl: trackingUrl.trim() === "" ? null : trackingUrl.trim(),
+    },
   });
   if (error) {
     return { error };
