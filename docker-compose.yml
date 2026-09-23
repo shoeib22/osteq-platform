@@ -25,6 +25,12 @@ services:
       # causes "prepared statement already exists" errors under concurrent load.
       DATABASE_URL: postgresql://postgres.osteq:${POSTGRES_PASSWORD}@supabase-pooler:6543/postgres?pgbouncer=true
       DIRECT_URL: postgresql://postgres.osteq:${POSTGRES_PASSWORD}@supabase-pooler:5432/postgres
+      # Both optional — notifyOrderStatusChange logs instead of sending when unset.
+      # Neither was actually reaching the container before (declared in .env.example
+      # but never passed through here), so email/push have been silently inert in
+      # production regardless of what was in .env.
+      RESEND_API_KEY: ${RESEND_API_KEY}
+      FIREBASE_SERVICE_ACCOUNT_JSON: ${FIREBASE_SERVICE_ACCOUNT_JSON}
     networks:
       - supabase_default
 
