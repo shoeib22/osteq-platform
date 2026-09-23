@@ -17,29 +17,16 @@ flutter pub get
 # API_BASE_URL, SUPABASE_URL, SUPABASE_ANON_KEY must be set as Environment
 # Variables on the Xcode Cloud workflow (App Store Connect > Xcode Cloud >
 # this workflow > Environment) so they never live in the repo.
-config_only_build() {
-  flutter build ios --release --no-codesign --config-only \
-    --dart-define=API_BASE_URL="$API_BASE_URL" \
-    --dart-define=SUPABASE_URL="$SUPABASE_URL" \
-    --dart-define=SUPABASE_ANON_KEY="$SUPABASE_ANON_KEY"
-}
-
-# Xcode Cloud disables automatic Swift Package resolution for every xcodebuild
-# invocation, including `-resolvePackageDependencies` itself — so the plain
-# resolve command fails with the same "a resolved file is required" error as
-# the build does. -disableAutomaticPackageResolution NO overrides that for
-# this one invocation, which is the only thing that can populate
-# Package.resolved on a machine that has never resolved these packages
-# before. The first config-only build is still expected to fail once: it's
-# what makes Flutter register the new plugin's package reference in
-# Runner.xcodeproj in the first place, before there's anything to resolve.
-config_only_build || true
-
-xcodebuild -resolvePackageDependencies \
-  -workspace ios/Runner.xcworkspace \
-  -scheme Runner \
-  -disableAutomaticPackageResolution NO
-
-config_only_build
+#
+# ios/Runner.xcworkspace/xcshareddata/swiftpm/Package.resolved is committed
+# to the repo (generated once via .github/workflows/resolve-spm.yml, since
+# Xcode Cloud's runners refuse to resolve Swift Package dependencies
+# themselves for a package with no existing lockfile). Keep that file in
+# sync by re-running the workflow and committing its output whenever a
+# plugin's SPM dependencies change — don't delete it.
+flutter build ios --release --no-codesign --config-only \
+  --dart-define=API_BASE_URL="$API_BASE_URL" \
+  --dart-define=SUPABASE_URL="$SUPABASE_URL" \
+  --dart-define=SUPABASE_ANON_KEY="$SUPABASE_ANON_KEY"
 
 exit 0
