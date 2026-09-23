@@ -1,0 +1,39 @@
+name: Resolve iOS Swift Package dependencies
+
+# One-off helper: Xcode Cloud disables automatic Swift Package resolution on
+# its own runners, so a Package.resolved has to be generated somewhere else
+# and committed. GitHub Actions macOS runners carry no such restriction, so
+# this exists purely to produce that file when no Apple-Silicon Mac is
+# available locally to run modern Xcode. Not part of the app's regular CI.
+on:
+  workflow_dispatch:
+
+jobs:
+  resolve:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: flutter pub get
+        working-directory: customer_app
+        run: flutter pub get
+
+      - name: Resolve Swift Package dependencies
+        working-directory: customer_app
+        run: |
+          xcodebuild -resolvePackageDependencies \
+            -workspace ios/Runner.xcworkspace \
+            -scheme Runner
+
+      - name: Upload Package.resolved
+        uses: actions/upload-artifact@v4
+        with:
+          name: package-resolved
+          path: |
+            customer_app/ios/Runner.xcworkspace/xcshareddata/swiftpm/Package.resolved
+            customer_app/ios/Runner.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
+          if-no-files-found: warn
