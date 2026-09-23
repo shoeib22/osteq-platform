@@ -25,19 +25,20 @@ config_only_build() {
 }
 
 # Xcode Cloud disables automatic Swift Package resolution for every xcodebuild
-# invocation, including the one `flutter build ios` runs internally — so the
-# very first build here is expected to fail with "a resolved file is
-# required..." the first time a new SPM-based plugin (e.g. firebase_core) is
-# added, because that's also the step that makes Flutter register the
-# package reference in Runner.xcodeproj in the first place. Let it fail,
-# resolve explicitly now that the reference exists, then build again — this
-# two-pass pattern is the standard workaround for Xcode Cloud + Flutter SPM
-# plugins (see flutter/flutter and firebase/flutterfire issue trackers).
+# invocation, including `-resolvePackageDependencies` itself — so the plain
+# resolve command fails with the same "a resolved file is required" error as
+# the build does. -disableAutomaticPackageResolution NO overrides that for
+# this one invocation, which is the only thing that can populate
+# Package.resolved on a machine that has never resolved these packages
+# before. The first config-only build is still expected to fail once: it's
+# what makes Flutter register the new plugin's package reference in
+# Runner.xcodeproj in the first place, before there's anything to resolve.
 config_only_build || true
 
 xcodebuild -resolvePackageDependencies \
   -workspace ios/Runner.xcworkspace \
-  -scheme Runner
+  -scheme Runner \
+  -disableAutomaticPackageResolution NO
 
 config_only_build
 
